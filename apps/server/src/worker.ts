@@ -1,19 +1,22 @@
 import { Worker, Job } from "bullmq";
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import type {
   ApiResponse,
   DeepSearchJobData,
   FoundItem,
   PageResult,
-  ProcurementItem,
   CompraItem,
 } from "./lib/types";
 import { io } from "./lib/socket-io";
 
 const api = axios.create({
   baseURL: "https://pncp.gov.br/api/",
-  timeout: 10000,
+  timeout: 15000,
 });
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 function normalize(text: string): string {
   return text
@@ -22,17 +25,150 @@ function normalize(text: string): string {
     .replace(/\p{Diacritic}/gu, "");
 }
 
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Timeout manual"));
+    }, ms);
+
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+async function requestWithRetry<T>(
+  config: AxiosRequestConfig,
+  options?: {
+    retries?: number;
+    timeoutMs?: number;
+    baseDelayMs?: number;
+  },
+): Promise<T> {
+  const retries = options?.retries ?? 3;
+  const timeoutMs = options?.timeoutMs ?? 10000;
+  const baseDelayMs = options?.baseDelayMs ?? 300;
+
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await withTimeout(api.request<T>(config), timeoutMs);
+      return res.data;
+    } catch (err: any) {
+      lastError = err;
+
+      console.warn(
+        `[HTTP] ❌ Tentativa ${attempt + 1}/${retries + 1}: ${err.message}`,
+      );
+
+      if (attempt === retries) break;
+
+      const delay = baseDelayMs * 2 ** attempt;
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+}
+
+class RateLimiter {
+  private queue: (() => void)[] = [];
+  private active = 0;
+
+  constructor(
+    private maxConcurrent: number,
+    private delayMs: number,
+  ) {}
+
+  async schedule<T>(task: () => Promise<T>): Promise<T> {
+    if (this.active >= this.maxConcurrent) {
+      await new Promise<void>((resolve) => this.queue.push(resolve));
+    }
+
+    this.active++;
+
+    try {
+      const result = await task();
+      await sleep(this.delayMs);
+      return result;
+    } finally {
+      this.active--;
+
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+}
+
+const limiter = new RateLimiter(5, 50);
+
+class CircuitBreaker {
+  private failures = 0;
+  private lastFailureTime = 0;
+  private state: "CLOSED" | "OPEN" | "HALF" = "CLOSED";
+
+  constructor(
+    private failureThreshold = 5,
+    private cooldownMs = 10000,
+  ) {}
+
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.state === "OPEN") {
+      if (Date.now() - this.lastFailureTime > this.cooldownMs) {
+        this.state = "HALF";
+      } else {
+        throw new Error("Circuit breaker OPEN");
+      }
+    }
+
+    try {
+      const result = await fn();
+
+      this.failures = 0;
+      this.state = "CLOSED";
+
+      return result;
+    } catch (err) {
+      this.failures++;
+      this.lastFailureTime = Date.now();
+
+      if (this.failures >= this.failureThreshold) {
+        this.state = "OPEN";
+        console.warn("[CircuitBreaker] 🔴 OPEN");
+      }
+
+      throw err;
+    }
+  }
+}
+
+const breaker = new CircuitBreaker();
+
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
   limit: number,
 ): Promise<T[]> {
-  const results: T[] = [];
+  const results: T[] = new Array(tasks.length);
   let index = 0;
 
   async function worker() {
-    while (index < tasks.length) {
+    while (true) {
       const current = index++;
-      results[current] = await tasks[current]();
+      if (current >= tasks.length) break;
+
+      try {
+        results[current] = await tasks[current]();
+      } catch (err) {
+        console.error(`[Worker] ❌ Erro na task ${current}`);
+        results[current] = null as T;
+      }
     }
   }
 
@@ -46,165 +182,102 @@ new Worker<DeepSearchJobData>(
     const { busca, buscaId, palavrasChave } = job.data;
 
     const jobStart = Date.now();
+
     console.log(`\n${"=".repeat(60)}`);
     console.log(`[Job] 🚀 Iniciando job #${job.id}`);
-    console.log(`[Job]    buscaId      : ${buscaId}`);
-    console.log(`[Job]    busca        : "${busca}"`);
-    console.log(`[Job]    palavrasChave: [${palavrasChave.join(", ")}]`);
+    console.log(`[Job] busca: "${busca}"`);
     console.log(`${"=".repeat(60)}\n`);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      console.warn(
-        `[Job] ⏱️  Timeout de 120s atingido — abortando job #${job.id}`,
-      );
-      controller.abort();
-    }, 120_000);
-
     const keywords = palavrasChave.map(normalize);
-    console.log(`[Job] 🔑 Keywords normalizadas: [${keywords.join(", ")}]`);
-
     let totalEncontrados = 0;
 
     try {
       let pagina = 1;
-      const tamanhoPagina = 10;
+      const MAX_PAGINAS = 50;
 
-      // ─── Loop de paginação externa ────────────────────────────────────────
-      while (true) {
-        if (controller.signal.aborted) {
-          console.warn(
-            `[Paginação] ⛔ Sinal de abort ativo — encerrando loop.`,
-          );
-          break;
-        }
+      while (pagina <= MAX_PAGINAS) {
+        console.log(`\n[Paginação] 📄 Página ${pagina}`);
 
-        console.log(`\n[Paginação] 📄 Buscando página externa ${pagina}...`);
-
-        const pageStart = Date.now();
-        const response = await api.get<ApiResponse>("/search/", {
-          signal: controller.signal,
-          params: {
-            q: busca,
-            tipos_documento: "edital",
-            ordenacao: "-data",
-            pagina,
-            tam_pagina: tamanhoPagina,
-            status: "todos",
-          },
-        });
-        console.log(
-          `[Paginação] ✅ Página ${pagina} recebida em ${Date.now() - pageStart}ms — ${response.data.items.length} edital(is) retornado(s)`,
+        const response = await limiter.schedule(() =>
+          breaker.execute(() =>
+            requestWithRetry<ApiResponse>({
+              url: "/search/",
+              method: "GET",
+              params: {
+                q: busca,
+                tipos_documento: "edital",
+                ordenacao: "-data",
+                pagina,
+                tam_pagina: 10,
+                status: "todos",
+              },
+            }),
+          ),
         );
 
-        const items = response.data.items;
+        if (!response.items.length) break;
 
-        if (!items.length) {
-          console.log(
-            `[Paginação] 🏁 Nenhum item na página ${pagina}. Fim da paginação externa.`,
-          );
-          break;
-        }
+        for (const item of response.items) {
+          const editalLabel = `${item.orgao_cnpj}/${item.ano}/${item.numero_sequencial}`;
 
-        // ─── Loop de editais da página ──────────────────────────────────────
-        for (const [index, item] of items.entries()) {
-          if (controller.signal.aborted) {
-            console.warn(
-              `[Edital] ⛔ Abort detectado — pulando restante dos editais.`,
+          console.log(`[Edital] 📋 ${editalLabel}`);
+
+          let quantidadeItens = 0;
+
+          try {
+            quantidadeItens = await limiter.schedule(() =>
+              breaker.execute(() =>
+                requestWithRetry<number>({
+                  url: `/pncp/v1/orgaos/${item.orgao_cnpj}/compras/${item.ano}/${item.numero_sequencial}/itens/quantidade`,
+                  method: "GET",
+                }),
+              ),
             );
-            break;
+          } catch {
+            console.warn(`[Edital] ❌ Falha ao obter quantidade`);
+            continue;
           }
 
-          const editalLabel = `${item.orgao_cnpj}/${item.ano}/${item.numero_sequencial}`;
-          console.log(
-            `\n[Edital] 📋 (${index + 1}/${items.length}) Processando: ${editalLabel}`,
-          );
-
-          // ─── Quantidade de itens internos ─────────────────────────────────
-          console.log(
-            `[Edital] 🔢 Buscando quantidade de itens de ${editalLabel}...`,
-          );
-          const quantStart = Date.now();
-
-          const quantidadeItens = await api
-            .get<number>(
-              `/pncp/v1/orgaos/${item.orgao_cnpj}/compras/${item.ano}/${item.numero_sequencial}/itens/quantidade`,
-              { signal: controller.signal },
-            )
-            .then((r) => r.data);
-
-          console.log(
-            `[Edital] ✅ ${quantidadeItens} item(ns) encontrado(s) em ${Date.now() - quantStart}ms`,
-          );
-
           const paginasInternas = Math.ceil(quantidadeItens / 50) || 1;
-          console.log(
-            `[Edital] 📑 ${paginasInternas} página(s) interna(s) a buscar (50 itens/página)`,
-          );
 
-          // ─── Busca paralela das páginas internas ──────────────────────────
-          const tasks: (() => Promise<PageResult | null>)[] = Array.from(
-            { length: paginasInternas },
-            (_, i) => {
-              return async () => {
-                if (controller.signal.aborted) {
-                  console.warn(
-                    `[Itens] ⛔ Abort — pulando página interna ${i + 1} de ${editalLabel}`,
-                  );
-                  return null;
-                }
-
-                console.log(
-                  `[Itens] ⬇️  Baixando página interna ${i + 1}/${paginasInternas} de ${editalLabel}...`,
-                );
-                const internalStart = Date.now();
-
-                const res = await api.get<CompraItem[]>(
-                  `/pncp/v1/orgaos/${item.orgao_cnpj}/compras/${item.ano}/${item.numero_sequencial}/itens`,
-                  {
-                    signal: controller.signal,
-                    params: {
-                      pagina: i + 1,
-                      tamanhoPagina: 50,
-                    },
-                  },
+          const tasks = Array.from({ length: paginasInternas }, (_, i) => {
+            return async () => {
+              try {
+                const data = await limiter.schedule(() =>
+                  breaker.execute(() =>
+                    requestWithRetry<CompraItem[]>({
+                      url: `/pncp/v1/orgaos/${item.orgao_cnpj}/compras/${item.ano}/${item.numero_sequencial}/itens`,
+                      method: "GET",
+                      params: {
+                        pagina: i + 1,
+                        tamanhoPagina: 50,
+                      },
+                    }),
+                  ),
                 );
 
-                console.log(
-                  `[Itens] ✅ Página interna ${i + 1}/${paginasInternas} de ${editalLabel} recebida em ${Date.now() - internalStart}ms — ${res.data.length} item(ns)`,
+                return { page: i + 1, data };
+              } catch (err: any) {
+                console.warn(
+                  `[Itens] ❌ Página ${i + 1} falhou: ${err.message}`,
                 );
+                return null;
+              }
+            };
+          });
 
-                return { page: i + 1, data: res.data };
-              };
-            },
-          );
-
-          const concurrencyStart = Date.now();
           const pages = await runWithConcurrency(tasks, 5);
-          console.log(
-            `[Edital] ⚡ Todas as páginas internas de ${editalLabel} processadas em ${Date.now() - concurrencyStart}ms`,
-          );
-
-          // ─── Filtragem por palavras-chave ─────────────────────────────────
-          let matchesNesteEdital = 0;
 
           for (const pageResult of pages) {
-            if (!pageResult || controller.signal.aborted) continue;
+            if (!pageResult) continue;
 
             for (const itemDetail of pageResult.data) {
-              const descricaoNormalizada = normalize(itemDetail.descricao);
+              const desc = normalize(itemDetail.descricao);
 
-              const matchedKeyword = keywords.find((k) =>
-                descricaoNormalizada.includes(k),
-              );
+              const matched = keywords.find((k) => desc.includes(k));
 
-              if (matchedKeyword) {
+              if (matched) {
                 totalEncontrados++;
-                matchesNesteEdital++;
-
-                console.log(
-                  `[Match] 🎯 Keyword "${matchedKeyword}" encontrada em ${editalLabel} — item: "${itemDetail.descricao.slice(0, 80)}..."`,
-                );
 
                 const result: FoundItem = {
                   link: `https://pncp.gov.br/app/editais/${item.orgao_cnpj}/${item.ano}/${item.numero_sequencial}`,
@@ -215,61 +288,22 @@ new Worker<DeepSearchJobData>(
                   unidadeMedida: itemDetail.unidadeMedida,
                 };
 
-                // 👉 salvar no banco
-                // await db.insert(itens)...
-
-                // 👉 websocket
-                // sendToUser(job.data.userId, result);
                 io.emit(buscaId, result);
-                console.log(
-                  `[Socket] 📡 Evento "${buscaId}" emitido via socket.io`,
-                );
               }
             }
           }
-
-          console.log(
-            `[Edital] ${matchesNesteEdital > 0 ? "🟢" : "⚪"} ${editalLabel} — ${matchesNesteEdital} match(es) neste edital`,
-          );
         }
 
         pagina++;
       }
 
-      const elapsed = ((Date.now() - jobStart) / 1000).toFixed(2);
-      console.log(`\n${"=".repeat(60)}`);
-      console.log(`[Job] ✅ Job #${job.id} concluído em ${elapsed}s`);
-      console.log(`[Job]    Total encontrados: ${totalEncontrados}`);
-      console.log(`${"=".repeat(60)}\n`);
+      console.log(`\n[Job] ✅ Finalizado`);
+      console.log(`[Job] Total encontrados: ${totalEncontrados}`);
 
       return { totalEncontrados };
     } catch (err: any) {
-      if (err.name === "AbortError" || controller.signal.aborted) {
-        const elapsed = ((Date.now() - jobStart) / 1000).toFixed(2);
-        console.warn(
-          `\n[Job] ⏱️  Job #${job.id} abortado por timeout após ${elapsed}s`,
-        );
-        console.warn(
-          `[Job]    Total encontrados até o abort: ${totalEncontrados}`,
-        );
-        return { timeout: true, totalEncontrados };
-      }
-
-      console.error(`\n[Job] ❌ Erro inesperado no job #${job.id}:`);
-      console.error(`[Job]    Tipo   : ${err.name}`);
-      console.error(`[Job]    Mensagem: ${err.message}`);
-      if (err.response) {
-        console.error(`[Job]    Status HTTP : ${err.response.status}`);
-        console.error(`[Job]    URL        : ${err.config?.url}`);
-        console.error(
-          `[Job]    Parâmetros : ${JSON.stringify(err.config?.params)}`,
-        );
-      }
-      console.error(`[Job]    Stack:\n`, err.stack);
-
+      console.error(`[Job] ❌ Erro: ${err.message}`);
       throw err;
-    } finally {
-      clearTimeout(timeout);
     }
   },
   {
@@ -277,6 +311,6 @@ new Worker<DeepSearchJobData>(
       host: "localhost",
       port: 6379,
     },
-    concurrency: 5,
+    concurrency: 3,
   },
 );
