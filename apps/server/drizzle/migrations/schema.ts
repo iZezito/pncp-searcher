@@ -7,6 +7,7 @@ import {
   serial,
   boolean,
   pgEnum,
+  integer,
 } from "drizzle-orm/pg-core";
 import { createId } from "@paralleldrive/cuid2";
 
@@ -106,5 +107,55 @@ export const users = pgTable(
       "btree",
       table.email.asc().nullsLast().op("text_ops"),
     ),
+  ],
+);
+
+export const planilhas = pgTable(
+  "planilhas",
+  {
+    id: text()
+      .$defaultFn(() => createId())
+      .primaryKey()
+      .notNull(),
+    name: text().notNull(),
+    userId: text().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+      name: "planilhas_userId_fkey",
+    })
+      .onUpdate("cascade")
+      .onDelete("cascade"),
+  ],
+);
+
+export const itens = pgTable(
+  "itens",
+  {
+    id: text()
+      .$defaultFn(() => createId())
+      .primaryKey()
+      .notNull(),
+    planilhaId: text().notNull(),
+    numero: integer().notNull(),
+    descricao: text().notNull(),
+    quantidade: integer().notNull(),
+    unidade: text().notNull(),
+    valor: integer().notNull(),
+    fonte: text().notNull(),
+    createdAt: timestamp({ precision: 3, withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.planilhaId],
+      foreignColumns: [planilhas.id],
+      name: "itens_planilhaId_fkey",
+    })
+      .onUpdate("cascade")
+      .onDelete("cascade"),
   ],
 );

@@ -4,6 +4,8 @@ import {
   emailVerifications,
   passwordResetTokens,
   twoFactorAuthentication,
+  itens,
+  planilhas,
 } from "./schema";
 
 export const emailVerificationsRelations = relations(
@@ -50,3 +52,19 @@ export const twoFactorAuthenticationRelations = relations(
     }),
   }),
 );
+
+export const itensRelations = relations(itens, ({ one }) => ({
+  planilha: one(planilhas, {
+    fields: [itens.planilhaId],
+    references: [planilhas.id],
+  }),
+}));
+
+export const planilhasRelations = relations(planilhas, ({ one, many }) => ({
+  user: one(users, {
+    fields: [planilhas.userId],
+    references: [users.id],
+  }),
+  itens: many(itens),
+}));
+

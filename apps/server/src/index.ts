@@ -9,6 +9,8 @@ import { DrizzleQueryError } from "drizzle-orm";
 import { engine } from "./lib/socket-io";
 import { queue } from "./lib/queue";
 import "./worker";
+import { itensController } from "./modules/itens_planilha";
+import { planilhasController } from "./modules/planilha";
 
 const app = new Elysia()
   .use(
@@ -62,7 +64,9 @@ const app = new Elysia()
   )
   .use(openapi())
   .use(userController)
-  .use(authController);
+  .use(authController)
+  .use(planilhasController)
+  .use(itensController);
 
 const { websocket } = engine.handler();
 
