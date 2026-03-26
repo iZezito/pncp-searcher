@@ -114,11 +114,12 @@ export const planilhasController = new Elysia({
 
       worksheet.columns = [
         { header: "Item", key: "numero", width: 10 },
+        { header: "Descrição", key: "descricao", width: 100 },
         { header: "Unidade", key: "unidade", width: 15 },
         { header: "Quantidade", key: "quantidade", width: 15 },
-        { header: "Descrição", key: "descricao", width: 40 },
         { header: "Valor", key: "valor", width: 15 },
-        { header: "Fonte", key: "fonte", width: 40 },
+        { header: "Total", key: "total", width: 15 },
+        { header: "Fonte", key: "fonte", width: 70 },
       ];
 
       for (const item of items) {
@@ -128,6 +129,7 @@ export const planilhasController = new Elysia({
           quantidade: item.quantidade,
           descricao: item.descricao,
           valor: item.valor,
+          total: item.quantidade * item.valor,
           fonte: item.fonte,
         });
       }
