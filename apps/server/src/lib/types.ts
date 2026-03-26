@@ -112,6 +112,7 @@ export type DeepSearchJobData = {
   palavrasChave: string[];
   userId: string;
   buscaId: string;
+  planilhaId: string;
 };
 
 export type PageResult = {

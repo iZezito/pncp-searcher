@@ -136,10 +136,15 @@ export const planilhasController = new Elysia({
 
       const buffer = await workbook.xlsx.writeBuffer();
 
+      const filename = `${planilha.name}.xlsx`;
+      const encodedFilename = encodeURIComponent(filename)
+        .replace(/['()]/g, escape)
+        .replace(/\*/g, "%2A");
+
       set.headers["Content-Type"] =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
       set.headers["Content-Disposition"] =
-        `attachment; filename="${planilha.name}.xlsx"`;
+        `attachment; filename="${filename.replace(/[^\x00-\x7F]/g, "")}"; filename*=UTF-8''${encodedFilename}`;
 
       return new Response(buffer as ArrayBuffer);
     },

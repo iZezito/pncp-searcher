@@ -7,10 +7,10 @@ import { SQL } from "bun";
 import { openapi } from "@elysiajs/openapi";
 import { DrizzleQueryError } from "drizzle-orm";
 import { engine } from "./lib/socket-io";
-import { queue } from "./lib/queue";
 import "./worker";
 import { itensController } from "./modules/itens_planilha";
 import { planilhasController } from "./modules/planilha";
+import { deepSearchController } from "./modules/deep_search";
 
 const app = new Elysia()
   .use(
@@ -43,31 +43,12 @@ const app = new Elysia()
   .get("/healthcheck", ({ status }) => {
     return "ok";
   })
-  .post(
-    "/deep-search",
-    async ({ status, body }) => {
-      console.log("recebido");
-      const job = await queue.add("deep-search", {
-        buscaId: "teste",
-        busca: body.busca,
-        palavrasChave: body.palavrasChave,
-        userId: "testeId",
-      });
-      return job.id;
-    },
-    {
-      body: t.Object({
-        busca: t.String(),
-        palavrasChave: t.Array(t.String()),
-        planilhaId: t.Optional(t.String()),
-      }),
-    },
-  )
   .use(openapi())
   .use(userController)
   .use(authController)
   .use(planilhasController)
-  .use(itensController);
+  .use(itensController)
+  .use(deepSearchController);
 
 const { websocket } = engine.handler();
 

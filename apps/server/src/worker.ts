@@ -8,6 +8,7 @@ import type {
   CompraItem,
 } from "./lib/types";
 import { io } from "./lib/socket-io";
+import { cancelledJobs } from "./modules/deep_search/cancelled-jobs";
 
 const api = axios.create({
   baseURL: "https://pncp.gov.br/api/",
@@ -176,17 +177,26 @@ async function runWithConcurrency<T>(
   return results;
 }
 
+function isJobCancelled(jobId: string | undefined): boolean {
+  if (!jobId) return false;
+  return cancelledJobs.has(jobId);
+}
+
 new Worker<DeepSearchJobData>(
   "deep-search",
   async (job: Job<DeepSearchJobData>) => {
-    const { busca, buscaId, palavrasChave } = job.data;
+    const { busca, planilhaId, palavrasChave } = job.data;
+    const room = planilhaId || "global";
 
     const jobStart = Date.now();
 
     console.log(`\n${"=".repeat(60)}`);
     console.log(`[Job] 🚀 Iniciando job #${job.id}`);
-    console.log(`[Job] busca: "${busca}"`);
+    console.log(`[Job] busca: "${busca}" | planilha: "${planilhaId}"`);
     console.log(`${"=".repeat(60)}\n`);
+
+    // Notify clients that the search has started
+    io.to(room).emit("search-started", { jobId: job.id, planilhaId });
 
     const keywords = palavrasChave.map(normalize);
     let totalEncontrados = 0;
@@ -196,6 +206,14 @@ new Worker<DeepSearchJobData>(
       const MAX_PAGINAS = 50;
 
       while (pagina <= MAX_PAGINAS) {
+        // Check cancellation before each page
+        if (isJobCancelled(job.id)) {
+          console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
+          cancelledJobs.delete(job.id!);
+          io.to(room).emit("search-stopped", { jobId: job.id, planilhaId, totalEncontrados });
+          return { totalEncontrados, cancelled: true };
+        }
+
         console.log(`\n[Paginação] 📄 Página ${pagina}`);
 
         const response = await limiter.schedule(() =>
@@ -218,6 +236,14 @@ new Worker<DeepSearchJobData>(
         if (!response.items.length) break;
 
         for (const item of response.items) {
+          // Check cancellation before each edital
+          if (isJobCancelled(job.id)) {
+            console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
+            cancelledJobs.delete(job.id!);
+            io.to(room).emit("search-stopped", { jobId: job.id, planilhaId, totalEncontrados });
+            return { totalEncontrados, cancelled: true };
+          }
+
           const editalLabel = `${item.orgao_cnpj}/${item.ano}/${item.numero_sequencial}`;
 
           console.log(`[Edital] 📋 ${editalLabel}`);
@@ -289,7 +315,7 @@ new Worker<DeepSearchJobData>(
                   fonte: `${item.title} - Local: ${item.municipio_nome}/${item.uf} - Órgão: ${item.orgao_nome}`,
                 };
 
-                io.emit(buscaId, result);
+                io.to(room).emit("search-result", result);
               }
             }
           }
@@ -301,9 +327,12 @@ new Worker<DeepSearchJobData>(
       console.log(`\n[Job] ✅ Finalizado`);
       console.log(`[Job] Total encontrados: ${totalEncontrados}`);
 
+      io.to(room).emit("search-completed", { jobId: job.id, planilhaId, totalEncontrados });
+
       return { totalEncontrados };
     } catch (err: any) {
       console.error(`[Job] ❌ Erro: ${err.message}`);
+      io.to(room).emit("search-stopped", { jobId: job.id, planilhaId, error: err.message });
       throw err;
     }
   },
