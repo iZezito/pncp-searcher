@@ -126,4 +126,5 @@ export type FoundItem = {
   paginaExterna: number;
   paginaInterna: number;
   unidadeMedida: string;
+  fonte: string;
 };

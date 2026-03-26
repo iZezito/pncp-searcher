@@ -58,7 +58,7 @@ export function LinkToPlanilhaModal({
     mutationFn: async () => {
       return api.put(`/itens/${selectedItemId}/vincular`, {
         valor: result.valor,
-        fonte: result.link,
+        fonte: result.fonte,
       });
     },
     onSuccess: () => {

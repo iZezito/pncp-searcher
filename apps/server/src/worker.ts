@@ -286,6 +286,7 @@ new Worker<DeepSearchJobData>(
                   paginaExterna: pagina,
                   paginaInterna: pageResult.page,
                   unidadeMedida: itemDetail.unidadeMedida,
+                  fonte: `${item.title} - Local: ${item.municipio_nome}/${item.uf} - Órgão: ${item.orgao_nome}`,
                 };
 
                 io.emit(buscaId, result);
