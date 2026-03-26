@@ -32,7 +32,8 @@ export const itensController = new Elysia({
   .put(
     "/:itemPlanilhaId",
     async ({ body, params }) => {
-      return await ItensPlanilhaService.update(body, params.itemPlanilhaId);
+      await ItensPlanilhaService.update(body, params.itemPlanilhaId);
+      return { success: true };
     },
     {
       body: itensPlanilhaUpdateSchema,
@@ -47,6 +48,26 @@ export const itensController = new Elysia({
       return await ItensPlanilhaService.delete(params.itemPlanilhaId);
     },
     {
+      params: t.Object({
+        itemPlanilhaId: t.String(),
+      }),
+    },
+  )
+  .put(
+    "/:itemPlanilhaId/vincular",
+    async ({ body, params }) => {
+      await ItensPlanilhaService.updateValorFonte(
+        params.itemPlanilhaId,
+        body.valor,
+        body.fonte,
+      );
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        valor: t.Number(),
+        fonte: t.String(),
+      }),
       params: t.Object({
         itemPlanilhaId: t.String(),
       }),

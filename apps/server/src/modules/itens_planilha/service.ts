@@ -16,7 +16,8 @@ export abstract class ItensPlanilhaService {
     return await db
       .select()
       .from(itens)
-      .where(eq(itens.planilhaId, planilhaId));
+      .where(eq(itens.planilhaId, planilhaId))
+      .orderBy(itens.numero);
   }
 
   static async update(
@@ -31,5 +32,9 @@ export abstract class ItensPlanilhaService {
 
   static async delete(id: string) {
     return await db.delete(itens).where(eq(itens.id, id));
+  }
+
+  static async updateValorFonte(id: string, valor: number, fonte: string) {
+    return await db.update(itens).set({ valor, fonte }).where(eq(itens.id, id));
   }
 }

@@ -8,6 +8,7 @@ import {
   PieChart,
   Home,
   Search,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -55,6 +56,11 @@ const data = {
       title: "Busca PNCP",
       url: "/deep-search",
       icon: Search,
+    },
+    {
+      title: "Planilhas",
+      url: "/planilhas",
+      icon: FileSpreadsheet,
     },
     // {
     //   title: "Tickets",

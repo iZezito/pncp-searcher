@@ -59,6 +59,7 @@ const app = new Elysia()
       body: t.Object({
         busca: t.String(),
         palavrasChave: t.Array(t.String()),
+        planilhaId: t.Optional(t.String()),
       }),
     },
   )

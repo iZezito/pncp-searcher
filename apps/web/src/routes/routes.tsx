@@ -11,6 +11,8 @@ import EmailValidation from "@/pages/validate-email";
 import Home from "@/pages/home";
 import { Roles } from "@/types";
 import DeepSearch from "@/pages/deep-search";
+import Planilhas from "@/pages/planilhas";
+import EditarPlanilha from "@/pages/editar-planilha";
 
 const allRoutes = () => {
   const publicRoutes = [
@@ -42,7 +44,9 @@ const allRoutes = () => {
       children: [
         { index: true, element: <Navigate to="/home" replace /> },
         { path: "profile", element: <Profile /> },
-        { path: "deep-search", element: <DeepSearch /> },
+        { path: "planilhas", element: <Planilhas /> },
+        { path: "planilhas/:id/editar", element: <EditarPlanilha /> },
+        { path: "deep-search/:idPlanilha?", element: <DeepSearch /> },
       ],
     },
   ];

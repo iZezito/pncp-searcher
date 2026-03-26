@@ -8,6 +8,7 @@ import {
   boolean,
   pgEnum,
   integer,
+  real,
 } from "drizzle-orm/pg-core";
 import { createId } from "@paralleldrive/cuid2";
 
@@ -143,7 +144,7 @@ export const itens = pgTable(
     descricao: text().notNull(),
     quantidade: integer().notNull(),
     unidade: text().notNull(),
-    valor: integer().notNull(),
+    valor: real().notNull(),
     fonte: text().notNull(),
     createdAt: timestamp({ precision: 3, withTimezone: true })
       .defaultNow()

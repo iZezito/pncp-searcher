@@ -6,9 +6,11 @@ import api from "@/services/api";
 import type { FoundItem } from "@/types/deep-search";
 import { Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useParams } from "react-router";
 import { io } from "socket.io-client";
 
 export default function DeepSearch() {
+  const { idPlanilha } = useParams<{ idPlanilha?: string }>();
   const [itens, setItens] = useState<FoundItem[]>([]);
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function DeepSearch() {
   }, []);
 
   const handleSearch = async (busca: string, palavrasChave: string[]) => {
-    await api.post("/deep-search", { busca, palavrasChave });
+    await api.post("/deep-search", { busca, palavrasChave, planilhaId: idPlanilha });
   };
 
   return (
@@ -48,6 +50,11 @@ export default function DeepSearch() {
           <p className="text-muted-foreground">
             Preencha os campos e realize sua busca em tempo real.
           </p>
+          {idPlanilha && (
+            <Badge variant="outline" className="mt-2">
+              Buscando para planilha: {idPlanilha}
+            </Badge>
+          )}
         </header>
 
         <main className="flex flex-col gap-8">
@@ -77,8 +84,12 @@ export default function DeepSearch() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {itens.map((result) => (
-                    <ResultCard result={result} />
+                  {itens.map((result, index) => (
+                    <ResultCard
+                      key={index}
+                      result={result}
+                      planilhaId={idPlanilha}
+                    />
                   ))}
                 </div>
               )}
