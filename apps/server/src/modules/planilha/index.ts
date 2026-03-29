@@ -134,6 +134,12 @@ export const planilhasController = new Elysia({
         });
       }
 
+      worksheet.getColumn("valor").numFmt = '"R$" #.##0,00';
+      worksheet.getColumn("total").numFmt = '"R$" #.##0,00';
+      worksheet.getColumn("descricao").alignment = {
+        wrapText: true,
+      };
+
       const buffer = await workbook.xlsx.writeBuffer();
 
       const filename = `${planilha.name}.xlsx`;
