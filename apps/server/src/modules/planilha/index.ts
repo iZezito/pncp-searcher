@@ -35,7 +35,14 @@ export const planilhasController = new Elysia({
         userId: user.id,
       });
 
-      const HEADERS = ["Item", "Unidade", "Quantidade", "Descrição"] as const;
+      const HEADERS = [
+        "ITEM",
+        "UNIDADE",
+        "QUANTIDADE",
+        "DESCRIÇÃO",
+        "VALOR",
+        "FONTE",
+      ] as const;
 
       const itens: ItensPlanilhaInsert[] = (
         worksheet.getRows(2, worksheet.rowCount - 1) ?? []
@@ -59,13 +66,13 @@ export const planilhasController = new Elysia({
           ),
         )
         .map((item) => ({
-          unidade: String(item["Unidade"] ?? ""),
-          quantidade: Number(item["Quantidade"] ?? 0),
-          descricao: String(item["Descrição"] ?? ""),
+          unidade: String(item["UNIDADE"] ?? ""),
+          quantidade: Number(item["QUANTIDADE"] ?? 0),
+          descricao: String(item["DESCRIÇÃO"] ?? ""),
           planilhaId: planilhaId[0].id,
-          numero: Number(item["Item"] ?? "0"),
-          valor: 0,
-          fonte: "",
+          numero: Number(item["ITEM"] ?? 0),
+          valor: Number(item["VALOR"] ?? 0),
+          fonte: String(item["FONTE"] ?? ""),
         }));
 
       await ItensPlanilhaService.create(itens);
