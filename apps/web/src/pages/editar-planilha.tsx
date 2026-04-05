@@ -32,10 +32,10 @@ import { toast } from "sonner";
 
 const editItemSchema = z.object({
   descricao: z.string().min(1, "Descrição é obrigatória"),
-  quantidade: z.coerce.number().min(0, "Deve ser >= 0"),
+  quantidade: z.coerce.number<number>().min(0, "Deve ser >= 0"),
   unidade: z.string().min(1, "Unidade é obrigatória"),
-  valor: z.coerce.number().min(0, "Deve ser >= 0"),
-  fonte: z.string().optional().default(""),
+  valor: z.coerce.number<number>().min(0, "Deve ser >= 0"),
+  fonte: z.string(),
 });
 
 type EditItemValues = z.infer<typeof editItemSchema>;
@@ -292,7 +292,8 @@ export default function EditarPlanilha() {
     enabled: !!id,
   });
 
-  const nextNumero = itens.length > 0 ? Math.max(...itens.map((i) => i.numero)) + 1 : 1;
+  const nextNumero =
+    itens.length > 0 ? Math.max(...itens.map((i) => i.numero)) + 1 : 1;
 
   const createMutation = useMutation({
     mutationFn: async (data: EditItemValues) => {
