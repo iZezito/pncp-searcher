@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { queue } from "@/lib/queue";
-import { cancelledJobs } from "./cancelled-jobs";
+import { cancelledJobs, pausedJobs } from "./cancelled-jobs";
+import { io } from "@/lib/socket-io";
 
 export const deepSearchController = new Elysia({
   prefix: "/deep-search",
@@ -40,6 +41,8 @@ export const deepSearchController = new Elysia({
       if (state === "active") {
         // Mark for cancellation — the worker checks this set each iteration
         cancelledJobs.add(params.jobId);
+        // Also clear from paused set if it was paused
+        pausedJobs.delete(params.jobId);
         return { message: "Job marcado para cancelamento", jobId: params.jobId };
       }
 
@@ -49,6 +52,56 @@ export const deepSearchController = new Elysia({
       }
 
       return { message: `Job já está em estado: ${state}`, jobId: params.jobId };
+    },
+    {
+      params: t.Object({
+        jobId: t.String(),
+      }),
+    },
+  )
+  .post(
+    "/jobs/:jobId/pause",
+    async ({ params, set }) => {
+      const job = await queue.getJob(params.jobId);
+
+      if (!job) {
+        set.status = 404;
+        return { message: "Job não encontrado" };
+      }
+
+      const state = await job.getState();
+
+      if (state !== "active") {
+        return { message: `Job não está ativo (estado: ${state})`, jobId: params.jobId };
+      }
+
+      pausedJobs.add(params.jobId);
+      const room = job.data.planilhaId || "global";
+      io.to(room).emit("search-paused", { jobId: params.jobId });
+
+      return { message: "Job pausado", jobId: params.jobId };
+    },
+    {
+      params: t.Object({
+        jobId: t.String(),
+      }),
+    },
+  )
+  .post(
+    "/jobs/:jobId/resume",
+    async ({ params, set }) => {
+      const job = await queue.getJob(params.jobId);
+
+      if (!job) {
+        set.status = 404;
+        return { message: "Job não encontrado" };
+      }
+
+      pausedJobs.delete(params.jobId);
+      const room = job.data.planilhaId || "global";
+      io.to(room).emit("search-resumed", { jobId: params.jobId });
+
+      return { message: "Job retomado", jobId: params.jobId };
     },
     {
       params: t.Object({
@@ -70,8 +123,9 @@ export const deepSearchController = new Elysia({
 
       const latest = planilhaJobs[0];
       const state = await latest.getState();
+      const isPaused = latest.id ? pausedJobs.has(latest.id) : false;
 
-      return { status: state, jobId: latest.id };
+      return { status: isPaused ? "paused" : state, jobId: latest.id };
     },
     {
       params: t.Object({

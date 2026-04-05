@@ -12,6 +12,10 @@ export abstract class ItensPlanilhaService {
     return await db.insert(itens).values(itensPlanilha);
   }
 
+  static async createOne(item: ItensPlanilhaInsert) {
+    return await db.insert(itens).values(item).returning();
+  }
+
   static async findByPlanilhaId(planilhaId: string) {
     return await db
       .select()

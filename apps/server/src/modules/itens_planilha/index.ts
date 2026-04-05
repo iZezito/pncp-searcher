@@ -17,15 +17,26 @@ export const itensController = new Elysia({
     },
   )
   .post(
-    "/",
-    async ({ body }) => {
-      return "";
+    "/:planilhaId/item",
+    async ({ body, params }) => {
+      const result = await ItensPlanilhaService.createOne({
+        ...body,
+        fonte: body.fonte ?? "",
+        planilhaId: params.planilhaId,
+      });
+      return result[0];
     },
     {
       body: t.Object({
-        planilha: t.File({
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }),
+        numero: t.Number(),
+        descricao: t.String({ minLength: 1 }),
+        quantidade: t.Number({ minimum: 0 }),
+        unidade: t.String({ minLength: 1 }),
+        valor: t.Number({ minimum: 0 }),
+        fonte: t.Optional(t.String()),
+      }),
+      params: t.Object({
+        planilhaId: t.String(),
       }),
     },
   )

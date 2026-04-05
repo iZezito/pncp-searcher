@@ -92,19 +92,14 @@ export const planilhasController = new Elysia({
       return await PlanilhaService.update(params.id, body);
     },
     {
-      body: planilhaInsertSchema,
-      response: planilhaSelectSchema,
+      body: t.Object({
+        name: t.String({ minLength: 1 }),
+      }),
     },
   )
-  .delete(
-    "/:id",
-    async ({ params }) => {
-      return await PlanilhaService.delete(params.id);
-    },
-    {
-      response: planilhaSelectSchema,
-    },
-  )
+  .delete("/:id", async ({ params }) => {
+    await PlanilhaService.delete(params.id);
+  })
   .get(
     "/:id/download",
     async ({ params, set }) => {

@@ -3,14 +3,33 @@ import { SearchForm } from "@/components/deep-search/search-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import api from "@/services/api";
 import type { FoundItem } from "@/types/deep-search";
-import { Wifi, WifiOff, Square, Trash2, Loader2 } from "lucide-react";
+import type { ItemPlanilha } from "@/types/planilha";
+import {
+  Wifi,
+  WifiOff,
+  Pause,
+  Play,
+  Square,
+  Trash2,
+  Loader2,
+  Eye,
+  Check,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { io, Socket } from "socket.io-client";
+import { useQuery } from "@tanstack/react-query";
 
-type SearchStatus = "idle" | "searching" | "stopped" | "completed";
+type SearchStatus = "idle" | "searching" | "paused" | "stopped" | "completed";
 
 export default function DeepSearch() {
   const { idPlanilha } = useParams<{ idPlanilha?: string }>();
@@ -18,7 +37,20 @@ export default function DeepSearch() {
   const [connected, setConnected] = useState(false);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [itensModalOpen, setItensModalOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+
+  // Fetch planilha items
+  const { data: planilhaItens = [], isLoading: isLoadingItens } = useQuery<
+    ItemPlanilha[]
+  >({
+    queryKey: ["itens-planilha", idPlanilha],
+    queryFn: async () => {
+      const res = await api.get<ItemPlanilha[]>(`/itens/${idPlanilha}`);
+      return res.data;
+    },
+    enabled: !!idPlanilha,
+  });
 
   useEffect(() => {
     const socket = io("http://localhost:3000", {
@@ -60,6 +92,16 @@ export default function DeepSearch() {
       setSearchStatus("completed");
     });
 
+    socket.on("search-paused", (data: { jobId: string }) => {
+      console.log("⏸️ Busca pausada:", data);
+      setSearchStatus("paused");
+    });
+
+    socket.on("search-resumed", (data: { jobId: string }) => {
+      console.log("▶️ Busca retomada:", data);
+      setSearchStatus("searching");
+    });
+
     socket.on("search-stopped", (data: { jobId: string }) => {
       console.log("🛑 Busca parada:", data);
       setSearchStatus("stopped");
@@ -84,7 +126,9 @@ export default function DeepSearch() {
         if (existingJobId) {
           setJobId(existingJobId);
         }
-        if (status === "active") {
+        if (status === "paused") {
+          setSearchStatus("paused");
+        } else if (status === "active") {
           setSearchStatus("searching");
         } else if (status === "completed") {
           setSearchStatus("completed");
@@ -118,12 +162,33 @@ export default function DeepSearch() {
     }
   }, [jobId]);
 
+  const handlePause = useCallback(async () => {
+    if (!jobId) return;
+    try {
+      await api.post(`/deep-search/jobs/${jobId}/pause`);
+      setSearchStatus("paused");
+    } catch (err) {
+      console.error("Erro ao pausar busca:", err);
+    }
+  }, [jobId]);
+
+  const handleResume = useCallback(async () => {
+    if (!jobId) return;
+    try {
+      await api.post(`/deep-search/jobs/${jobId}/resume`);
+      setSearchStatus("searching");
+    } catch (err) {
+      console.error("Erro ao retomar busca:", err);
+    }
+  }, [jobId]);
+
   const handleClearPartial = useCallback(() => {
     setItens((prev) => prev.slice(10));
   }, []);
 
   const statusLabel: Record<SearchStatus, string> = {
     idle: "Aguardando busca",
+    paused: "Busca pausada",
     searching: "Buscando...",
     stopped: "Busca parada",
     completed: "Busca concluída",
@@ -136,12 +201,29 @@ export default function DeepSearch() {
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-2xl font-bold text-foreground">App de Busca</h1>
             <div className="flex items-center gap-2">
+              {idPlanilha && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setItensModalOpen(true)}
+                  className="gap-1.5"
+                >
+                  <Eye className="size-4" />
+                  Ver Itens
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {planilhaItens.length}
+                  </Badge>
+                </Button>
+              )}
               <Badge
-                variant={searchStatus === "searching" ? "default" : "secondary"}
+                variant={searchStatus === "searching" || searchStatus === "paused" ? "default" : "secondary"}
                 className="gap-1.5"
               >
                 {searchStatus === "searching" && (
                   <Loader2 className="size-3 animate-spin" />
+                )}
+                {searchStatus === "paused" && (
+                  <Pause className="size-3" />
                 )}
                 {statusLabel[searchStatus]}
               </Badge>
@@ -186,13 +268,35 @@ export default function DeepSearch() {
               <div className="flex items-center gap-2">
                 {searchStatus === "searching" && jobId && (
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePause}
+                    className="gap-1.5"
+                  >
+                    <Pause className="size-3" />
+                    Pausar
+                  </Button>
+                )}
+                {searchStatus === "paused" && jobId && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleResume}
+                    className="gap-1.5"
+                  >
+                    <Play className="size-3" />
+                    Continuar
+                  </Button>
+                )}
+                {(searchStatus === "searching" || searchStatus === "paused") && jobId && (
+                  <Button
                     variant="destructive"
                     size="sm"
                     onClick={handleStop}
                     className="gap-1.5"
                   >
                     <Square className="size-3" />
-                    Parar Busca
+                    Parar
                   </Button>
                 )}
                 {itens.length > 0 && (
@@ -221,11 +325,13 @@ export default function DeepSearch() {
                   <p className="text-muted-foreground text-center">
                     {searchStatus === "searching"
                       ? "Buscando resultados..."
-                      : searchStatus === "stopped"
-                        ? "Busca foi parada pelo usuário."
-                        : searchStatus === "completed"
-                          ? "Busca concluída. Nenhum resultado encontrado."
-                          : "Nenhuma busca realizada ainda."}
+                      : searchStatus === "paused"
+                        ? "Busca pausada. Clique em Continuar para retomar."
+                        : searchStatus === "stopped"
+                          ? "Busca foi parada pelo usuário."
+                          : searchStatus === "completed"
+                            ? "Busca concluída. Nenhum resultado encontrado."
+                            : "Nenhuma busca realizada ainda."}
                   </p>
                 </div>
               ) : (
@@ -243,6 +349,73 @@ export default function DeepSearch() {
           </section>
         </main>
       </div>
+
+      {/* Modal de itens da planilha */}
+      <Dialog open={itensModalOpen} onOpenChange={setItensModalOpen}>
+        <DialogContent className="sm:max-w-lg max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="size-5" />
+              Itens da Planilha
+            </DialogTitle>
+            <DialogDescription>
+              {planilhaItens.length} {planilhaItens.length === 1 ? "item" : "itens"} na planilha
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[60vh]">
+            {isLoadingItens ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : planilhaItens.length === 0 ? (
+              <div className="flex items-center justify-center p-8">
+                <p className="text-sm text-muted-foreground">
+                  Nenhum item na planilha.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 pr-3">
+                {planilhaItens.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-md border bg-background p-3 text-sm overflow-hidden"
+                  >
+                    <div className="flex items-start gap-2 min-w-0">
+                      <span className="shrink-0 flex items-center justify-center size-6 rounded bg-primary/10 text-xs font-bold text-primary mt-0.5">
+                        {item.numero}
+                      </span>
+                      <span className="font-medium break-words">
+                        {item.descricao}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 ml-8 text-xs text-muted-foreground">
+                      <span>
+                        Qtd: <strong className="text-foreground">{item.quantidade}</strong>
+                      </span>
+                      <span>
+                        Und: <strong className="text-foreground">{item.unidade}</strong>
+                      </span>
+                      <span>
+                        Valor:{" "}
+                        <strong className="text-foreground">
+                          {item.valor > 0 ? `R$ ${item.valor.toFixed(2)}` : "—"}
+                        </strong>
+                      </span>
+                    </div>
+                    {item.fonte && (
+                      <p className="mt-1.5 ml-8 text-xs text-muted-foreground break-words flex items-start gap-1">
+                        <Check className="size-3 text-green-500 shrink-0" />
+                        {item.fonte}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

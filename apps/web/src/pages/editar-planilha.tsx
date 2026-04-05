@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Save, Loader2, X } from "lucide-react";
+import { ArrowLeft, Save, Loader2, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -281,6 +281,7 @@ export default function EditarPlanilha() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingItem, setAddingItem] = useState(false);
 
   const { data: itens = [], isLoading } = useQuery<ItemPlanilha[]>({
     queryKey: ["itens-planilha", id],
@@ -289,6 +290,25 @@ export default function EditarPlanilha() {
       return response.data;
     },
     enabled: !!id,
+  });
+
+  const nextNumero = itens.length > 0 ? Math.max(...itens.map((i) => i.numero)) + 1 : 1;
+
+  const createMutation = useMutation({
+    mutationFn: async (data: EditItemValues) => {
+      return api.post(`/itens/${id}/item`, {
+        ...data,
+        numero: nextNumero,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Item adicionado!");
+      setAddingItem(false);
+      queryClient.invalidateQueries({ queryKey: ["itens-planilha", id] });
+    },
+    onError: () => {
+      toast.error("Erro ao adicionar item");
+    },
   });
 
   const updateMutation = useMutation({
@@ -318,18 +338,31 @@ export default function EditarPlanilha() {
         { label: "Editar" },
       ]}
     >
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/planilhas")}
+          >
+            <ArrowLeft className="size-4 mr-1" />
+            Voltar
+          </Button>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+            Editar Planilha
+          </h1>
+        </div>
         <Button
-          variant="outline"
           size="sm"
-          onClick={() => navigate("/planilhas")}
+          onClick={() => {
+            setEditingId(null);
+            setAddingItem(true);
+          }}
+          disabled={addingItem}
         >
-          <ArrowLeft className="size-4 mr-1" />
-          Voltar
+          <Plus className="size-4 mr-1" />
+          Adicionar Item
         </Button>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-          Editar Planilha
-        </h1>
       </div>
 
       <Card>
@@ -408,6 +441,28 @@ export default function EditarPlanilha() {
                         )}
                       </TableRow>
                     ))}
+                    {addingItem && (
+                      <TableRow>
+                        <TableCell>{nextNumero}</TableCell>
+                        <EditItemForm
+                          item={{
+                            id: "new",
+                            planilhaId: id!,
+                            numero: nextNumero,
+                            descricao: "",
+                            quantidade: 0,
+                            unidade: "",
+                            valor: 0,
+                            fonte: "",
+                            createdAt: "",
+                          }}
+                          layout="table"
+                          isPending={createMutation.isPending}
+                          onSave={(data) => createMutation.mutate(data)}
+                          onCancel={() => setAddingItem(false)}
+                        />
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -478,6 +533,34 @@ export default function EditarPlanilha() {
                     </CardContent>
                   </Card>
                 ))}
+                {addingItem && (
+                  <Card className="overflow-hidden border-dashed">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-muted-foreground">
+                          Novo Item #{nextNumero}
+                        </span>
+                      </div>
+                      <EditItemForm
+                        item={{
+                          id: "new",
+                          planilhaId: id!,
+                          numero: nextNumero,
+                          descricao: "",
+                          quantidade: 0,
+                          unidade: "",
+                          valor: 0,
+                          fonte: "",
+                          createdAt: "",
+                        }}
+                        layout="card"
+                        isPending={createMutation.isPending}
+                        onSave={(data) => createMutation.mutate(data)}
+                        onCancel={() => setAddingItem(false)}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </>
           )}

@@ -15,12 +15,19 @@ export abstract class PlanilhaService {
   }
 
   static async findById(id: string) {
-    const result = await db.select().from(planilhas).where(eq(planilhas.id, id));
+    const result = await db
+      .select()
+      .from(planilhas)
+      .where(eq(planilhas.id, id));
     return result[0] ?? null;
   }
 
   static async update(id: string, data: Partial<PlanilhaInsert>) {
-    return await db.update(planilhas).set(data).where(eq(planilhas.id, id));
+    return await db
+      .update(planilhas)
+      .set(data)
+      .where(eq(planilhas.id, id))
+      .returning();
   }
 
   static async delete(id: string) {

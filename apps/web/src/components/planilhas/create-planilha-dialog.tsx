@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -117,6 +117,32 @@ export function CreatePlanilhaDialog({
                 </FormItem>
               )}
             />
+
+            <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30 p-3">
+              <div className="flex items-start gap-2">
+                <Info className="size-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                    Formato esperado da planilha
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">
+                    O cabeçalho (primeira linha) do arquivo Excel deve conter exatamente estas colunas:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {["ITEM", "UNIDADE", "QUANTIDADE", "DESCRIÇÃO", "VALOR", "FONTE"].map(
+                      (col) => (
+                        <span
+                          key={col}
+                          className="inline-flex items-center rounded-md bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 text-xs font-mono font-medium text-blue-800 dark:text-blue-300 ring-1 ring-inset ring-blue-300 dark:ring-blue-700"
+                        >
+                          {col}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Arquivo Excel</label>

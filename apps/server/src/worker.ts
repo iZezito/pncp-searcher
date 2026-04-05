@@ -8,7 +8,7 @@ import type {
   CompraItem,
 } from "./lib/types";
 import { io } from "./lib/socket-io";
-import { cancelledJobs } from "./modules/deep_search/cancelled-jobs";
+import { cancelledJobs, pausedJobs } from "./modules/deep_search/cancelled-jobs";
 
 const api = axios.create({
   baseURL: "https://pncp.gov.br/api/",
@@ -182,6 +182,23 @@ function isJobCancelled(jobId: string | undefined): boolean {
   return cancelledJobs.has(jobId);
 }
 
+async function waitWhilePaused(jobId: string | undefined, room: string): Promise<void> {
+  if (!jobId) return;
+  let notified = false;
+  while (pausedJobs.has(jobId)) {
+    if (!notified) {
+      console.log(`[Job] ⏸️ Job #${jobId} pausado`);
+      notified = true;
+    }
+    // Also check cancellation while paused
+    if (isJobCancelled(jobId)) return;
+    await sleep(500);
+  }
+  if (notified) {
+    console.log(`[Job] ▶️ Job #${jobId} retomado`);
+  }
+}
+
 new Worker<DeepSearchJobData>(
   "deep-search",
   async (job: Job<DeepSearchJobData>) => {
@@ -206,6 +223,9 @@ new Worker<DeepSearchJobData>(
       const MAX_PAGINAS = 50;
 
       while (pagina <= MAX_PAGINAS) {
+        // Wait while paused
+        await waitWhilePaused(job.id, room);
+
         // Check cancellation before each page
         if (isJobCancelled(job.id)) {
           console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
@@ -236,6 +256,9 @@ new Worker<DeepSearchJobData>(
         if (!response.items.length) break;
 
         for (const item of response.items) {
+          // Wait while paused
+          await waitWhilePaused(job.id, room);
+
           // Check cancellation before each edital
           if (isJobCancelled(job.id)) {
             console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
