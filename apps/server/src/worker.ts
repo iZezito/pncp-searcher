@@ -8,7 +8,10 @@ import type {
   CompraItem,
 } from "./lib/types";
 import { io } from "./lib/socket-io";
-import { cancelledJobs, pausedJobs } from "./modules/deep_search/cancelled-jobs";
+import {
+  cancelledJobs,
+  pausedJobs,
+} from "./modules/deep_search/cancelled-jobs";
 
 const api = axios.create({
   baseURL: "https://pncp.gov.br/api/",
@@ -182,7 +185,10 @@ function isJobCancelled(jobId: string | undefined): boolean {
   return cancelledJobs.has(jobId);
 }
 
-async function waitWhilePaused(jobId: string | undefined, room: string): Promise<void> {
+async function waitWhilePaused(
+  jobId: string | undefined,
+  room: string,
+): Promise<void> {
   if (!jobId) return;
   let notified = false;
   while (pausedJobs.has(jobId)) {
@@ -230,7 +236,11 @@ new Worker<DeepSearchJobData>(
         if (isJobCancelled(job.id)) {
           console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
           cancelledJobs.delete(job.id!);
-          io.to(room).emit("search-stopped", { jobId: job.id, planilhaId, totalEncontrados });
+          io.to(room).emit("search-stopped", {
+            jobId: job.id,
+            planilhaId,
+            totalEncontrados,
+          });
           return { totalEncontrados, cancelled: true };
         }
 
@@ -263,7 +273,11 @@ new Worker<DeepSearchJobData>(
           if (isJobCancelled(job.id)) {
             console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
             cancelledJobs.delete(job.id!);
-            io.to(room).emit("search-stopped", { jobId: job.id, planilhaId, totalEncontrados });
+            io.to(room).emit("search-stopped", {
+              jobId: job.id,
+              planilhaId,
+              totalEncontrados,
+            });
             return { totalEncontrados, cancelled: true };
           }
 
@@ -350,12 +364,20 @@ new Worker<DeepSearchJobData>(
       console.log(`\n[Job] ✅ Finalizado`);
       console.log(`[Job] Total encontrados: ${totalEncontrados}`);
 
-      io.to(room).emit("search-completed", { jobId: job.id, planilhaId, totalEncontrados });
+      io.to(room).emit("search-completed", {
+        jobId: job.id,
+        planilhaId,
+        totalEncontrados,
+      });
 
       return { totalEncontrados };
     } catch (err: any) {
       console.error(`[Job] ❌ Erro: ${err.message}`);
-      io.to(room).emit("search-stopped", { jobId: job.id, planilhaId, error: err.message });
+      io.to(room).emit("search-stopped", {
+        jobId: job.id,
+        planilhaId,
+        error: err.message,
+      });
       throw err;
     }
   },

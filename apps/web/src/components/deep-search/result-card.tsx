@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, FileText, Link2 } from "lucide-react";
+import { ExternalLink, FileText, Link2, Ruler } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import type { FoundItem } from "@/types/deep-search";
 import { Badge } from "../ui/badge";
@@ -30,7 +30,10 @@ export function ResultCard({ result, planilhaId }: ResultCardProps) {
                 {result.link}
               </a>
             </CardTitle>
-            <Badge className="shrink-0">{result.valor}</Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="outline">{result.unidadeMedida}</Badge>
+              <Badge>{result.valor}</Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -47,6 +50,12 @@ export function ResultCard({ result, planilhaId }: ResultCardProps) {
               <ExternalLink className="size-4 text-muted-foreground" />
               <span className="text-muted-foreground">Externa:</span>
               <span className="font-medium">{result.paginaExterna}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Ruler className="size-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Unidade:</span>
+              <span className="font-medium">{result.unidadeMedida}</span>
             </div>
           </div>
 

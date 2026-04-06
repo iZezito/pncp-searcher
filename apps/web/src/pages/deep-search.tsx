@@ -182,8 +182,8 @@ export default function DeepSearch() {
     }
   }, [jobId]);
 
-  const handleClearPartial = useCallback(() => {
-    setItens((prev) => prev.slice(10));
+  const handleClear = useCallback(() => {
+    setItens([]);
   }, []);
 
   const statusLabel: Record<SearchStatus, string> = {
@@ -216,15 +216,17 @@ export default function DeepSearch() {
                 </Button>
               )}
               <Badge
-                variant={searchStatus === "searching" || searchStatus === "paused" ? "default" : "secondary"}
+                variant={
+                  searchStatus === "searching" || searchStatus === "paused"
+                    ? "default"
+                    : "secondary"
+                }
                 className="gap-1.5"
               >
                 {searchStatus === "searching" && (
                   <Loader2 className="size-3 animate-spin" />
                 )}
-                {searchStatus === "paused" && (
-                  <Pause className="size-3" />
-                )}
+                {searchStatus === "paused" && <Pause className="size-3" />}
                 {statusLabel[searchStatus]}
               </Badge>
               <Badge
@@ -288,26 +290,27 @@ export default function DeepSearch() {
                     Continuar
                   </Button>
                 )}
-                {(searchStatus === "searching" || searchStatus === "paused") && jobId && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleStop}
-                    className="gap-1.5"
-                  >
-                    <Square className="size-3" />
-                    Parar
-                  </Button>
-                )}
+                {(searchStatus === "searching" || searchStatus === "paused") &&
+                  jobId && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleStop}
+                      className="gap-1.5"
+                    >
+                      <Square className="size-3" />
+                      Parar
+                    </Button>
+                  )}
                 {itens.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleClearPartial}
+                    onClick={handleClear}
                     className="gap-1.5"
                   >
                     <Trash2 className="size-3" />
-                    Limpar 10
+                    Limpar
                   </Button>
                 )}
                 {itens.length > 0 && (
@@ -359,7 +362,8 @@ export default function DeepSearch() {
               Itens da Planilha
             </DialogTitle>
             <DialogDescription>
-              {planilhaItens.length} {planilhaItens.length === 1 ? "item" : "itens"} na planilha
+              {planilhaItens.length}{" "}
+              {planilhaItens.length === 1 ? "item" : "itens"} na planilha
             </DialogDescription>
           </DialogHeader>
 
@@ -391,10 +395,16 @@ export default function DeepSearch() {
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 ml-8 text-xs text-muted-foreground">
                       <span>
-                        Qtd: <strong className="text-foreground">{item.quantidade}</strong>
+                        Qtd:{" "}
+                        <strong className="text-foreground">
+                          {item.quantidade}
+                        </strong>
                       </span>
                       <span>
-                        Und: <strong className="text-foreground">{item.unidade}</strong>
+                        Und:{" "}
+                        <strong className="text-foreground">
+                          {item.unidade}
+                        </strong>
                       </span>
                       <span>
                         Valor:{" "}
