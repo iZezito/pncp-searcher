@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, Loader2, Link2 } from "lucide-react";
 import {
   Dialog,
@@ -44,6 +44,7 @@ export function LinkToPlanilhaModal({
 }: LinkToPlanilhaModalProps) {
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string>("");
+  const queryClient = useQueryClient();
 
   const { data: itens = [], isLoading } = useQuery<ItemPlanilha[]>({
     queryKey: ["itens-planilha-vincular", planilhaId],
@@ -62,6 +63,16 @@ export function LinkToPlanilhaModal({
       });
     },
     onSuccess: () => {
+      // Update the itens-planilha cache locally without refetching
+      queryClient.setQueryData<ItemPlanilha[]>(
+        ["itens-planilha", planilhaId],
+        (old) =>
+          old?.map((item) =>
+            item.id === selectedItemId
+              ? { ...item, valor: result.valor, fonte: result.fonte }
+              : item,
+          ),
+      );
       toast.success("Resultado vinculado com sucesso!");
       setSelectedItemId("");
       onOpenChange(false);

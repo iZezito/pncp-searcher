@@ -23,6 +23,8 @@ import {
   Loader2,
   Eye,
   Check,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
@@ -38,9 +40,11 @@ export default function DeepSearch() {
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
   const [jobId, setJobId] = useState<string | null>(null);
   const [itensModalOpen, setItensModalOpen] = useState(false);
+  const [pinnedItemId, setPinnedItemId] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const scrollPositionRef = useRef<number>(0);
+  const modalScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch planilha items
   const { data: planilhaItens = [], isLoading: isLoadingItens } = useQuery<
     ItemPlanilha[]
   >({
@@ -65,7 +69,6 @@ export default function DeepSearch() {
       console.log("✅ Conectado ao socket:", socket.id);
       setConnected(true);
 
-      // Join the planilha-specific room
       if (idPlanilha) {
         socket.emit("join-room", idPlanilha);
       }
@@ -76,7 +79,6 @@ export default function DeepSearch() {
       setConnected(false);
     });
 
-    // Listen for search results in the planilha room
     socket.on("search-result", (data: FoundItem) => {
       console.log("📥 Recebido:", data);
       setItens((prev) => [...prev, data]);
@@ -115,7 +117,6 @@ export default function DeepSearch() {
     };
   }, [idPlanilha]);
 
-  // Restore job state on mount/reload
   useEffect(() => {
     if (!idPlanilha) return;
 
@@ -262,6 +263,67 @@ export default function DeepSearch() {
             <SearchForm onSearch={handleSearch} />
           </section>
 
+          {(() => {
+            const pinnedItem = planilhaItens.find((i) => i.id === pinnedItemId);
+            if (!pinnedItem) return null;
+            return (
+              <section className="rounded-xl border border-primary/30 bg-card shadow-sm overflow-hidden">
+                <div className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-xs font-semibold text-primary">
+                  <Pin className="size-3" />
+                  Item a ser buscado
+                </div>
+                <div className="flex items-center gap-3 px-4 pb-4 pt-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="shrink-0 flex items-center justify-center size-6 rounded bg-primary/10 text-xs font-bold">
+                        {pinnedItem.numero}
+                      </span>
+                      <span className="text-sm font-medium truncate">
+                        {pinnedItem.descricao}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 ml-8 text-xs text-muted-foreground">
+                      <span>
+                        Qtd:{" "}
+                        <strong className="text-foreground">
+                          {pinnedItem.quantidade}
+                        </strong>
+                      </span>
+                      <span>
+                        Und:{" "}
+                        <strong className="text-foreground">
+                          {pinnedItem.unidade}
+                        </strong>
+                      </span>
+                      <span>
+                        Valor:{" "}
+                        <strong className="text-foreground">
+                          {pinnedItem.valor > 0
+                            ? `R$ ${pinnedItem.valor.toFixed(2)}`
+                            : "—"}
+                        </strong>
+                      </span>
+                    </div>
+                    {pinnedItem.fonte && (
+                      <p className="mt-1 ml-8 text-xs text-muted-foreground flex items-center gap-1">
+                        <Check className="size-3 text-green-500 shrink-0" />
+                        {pinnedItem.fonte}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPinnedItemId(null)}
+                    className="shrink-0 p-1 rounded hover:bg-muted transition-colors"
+                    title="Desafixar item"
+                  >
+                    <PinOff className="size-4 text-muted-foreground" />
+                  </button>
+                </div>
+              </section>
+            );
+          })()}
+
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">
@@ -353,7 +415,6 @@ export default function DeepSearch() {
         </main>
       </div>
 
-      {/* Modal de itens da planilha */}
       <Dialog open={itensModalOpen} onOpenChange={setItensModalOpen}>
         <DialogContent className="sm:max-w-lg max-w-[95vw]">
           <DialogHeader>
@@ -368,61 +429,112 @@ export default function DeepSearch() {
           </DialogHeader>
 
           <ScrollArea className="max-h-[60vh]">
-            {isLoadingItens ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : planilhaItens.length === 0 ? (
-              <div className="flex items-center justify-center p-8">
-                <p className="text-sm text-muted-foreground">
-                  Nenhum item na planilha.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 pr-3">
-                {planilhaItens.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-md border bg-background p-3 text-sm overflow-hidden"
-                  >
-                    <div className="flex items-start gap-2 min-w-0">
-                      <span className="shrink-0 flex items-center justify-center size-6 rounded bg-primary/10 text-xs font-bold text-primary mt-0.5">
-                        {item.numero}
-                      </span>
-                      <span className="font-medium break-words">
-                        {item.descricao}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 ml-8 text-xs text-muted-foreground">
-                      <span>
-                        Qtd:{" "}
-                        <strong className="text-foreground">
-                          {item.quantidade}
-                        </strong>
-                      </span>
-                      <span>
-                        Und:{" "}
-                        <strong className="text-foreground">
-                          {item.unidade}
-                        </strong>
-                      </span>
-                      <span>
-                        Valor:{" "}
-                        <strong className="text-foreground">
-                          {item.valor > 0 ? `R$ ${item.valor.toFixed(2)}` : "—"}
-                        </strong>
-                      </span>
-                    </div>
-                    {item.fonte && (
-                      <p className="mt-1.5 ml-8 text-xs text-muted-foreground break-words flex items-start gap-1">
-                        <Check className="size-3 text-green-500 shrink-0" />
-                        {item.fonte}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div
+              ref={(node) => {
+                if (node) {
+                  const viewport = node
+                    .closest('[data-slot="scroll-area"]')
+                    ?.querySelector(
+                      '[data-slot="scroll-area-viewport"]',
+                    ) as HTMLDivElement | null;
+                  if (viewport) {
+                    modalScrollRef.current = viewport;
+                    requestAnimationFrame(() => {
+                      viewport.scrollTop = scrollPositionRef.current;
+                    });
+                    viewport.onscroll = () => {
+                      scrollPositionRef.current = viewport.scrollTop;
+                    };
+                  }
+                }
+              }}
+            >
+              {isLoadingItens ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : planilhaItens.length === 0 ? (
+                <div className="flex items-center justify-center p-8">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum item na planilha.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 pr-3">
+                  {[...planilhaItens]
+                    .sort((a, b) => {
+                      if (a.id === pinnedItemId) return -1;
+                      if (b.id === pinnedItemId) return 1;
+                      return 0;
+                    })
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className={`rounded-md border ${item.id === pinnedItemId ? "ring-2 ring-primary/50" : ""} ${item.valor > 0 ? "bg-primary" : "bg-background"} p-3 text-sm overflow-hidden`}
+                      >
+                        <div className="flex items-start gap-2 min-w-0">
+                          <span
+                            className={`shrink-0 flex items-center justify-center size-6 rounded bg-white/10 text-xs font-bold mt-0.5`}
+                          >
+                            {item.numero}
+                          </span>
+                          <span className="font-medium break-words flex-1">
+                            {item.descricao}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPinnedItemId(
+                                pinnedItemId === item.id ? null : item.id,
+                              )
+                            }
+                            className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                            title={
+                              pinnedItemId === item.id
+                                ? "Desafixar item"
+                                : "Fixar item no topo"
+                            }
+                          >
+                            {pinnedItemId === item.id ? (
+                              <PinOff className="size-3.5 text-primary" />
+                            ) : (
+                              <Pin className="size-3.5 text-muted-foreground" />
+                            )}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 ml-8 text-xs text-muted-foreground">
+                          <span>
+                            Qtd:{" "}
+                            <strong className="text-foreground">
+                              {item.quantidade}
+                            </strong>
+                          </span>
+                          <span>
+                            Und:{" "}
+                            <strong className="text-foreground">
+                              {item.unidade}
+                            </strong>
+                          </span>
+                          <span>
+                            Valor:{" "}
+                            <strong className="text-foreground">
+                              {item.valor > 0
+                                ? `R$ ${item.valor.toFixed(2)}`
+                                : "—"}
+                            </strong>
+                          </span>
+                        </div>
+                        {item.fonte && (
+                          <p className="mt-1.5 ml-8 text-xs text-muted-foreground break-words flex items-start gap-1">
+                            <Check className="size-3 text-green-500 shrink-0" />
+                            {item.fonte}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </DialogContent>
       </Dialog>

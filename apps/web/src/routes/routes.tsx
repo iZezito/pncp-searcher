@@ -42,11 +42,11 @@ const allRoutes = () => {
       path: "/",
       element: <ProtectedRoute allowedRoles={[Roles.DEFAULT]} />,
       children: [
-        { index: true, element: <Navigate to="/home" replace /> },
+        { index: true, element: <Navigate to="/planilhas" /> },
         { path: "profile", element: <Profile /> },
         { path: "planilhas", element: <Planilhas /> },
         { path: "planilhas/:id/editar", element: <EditarPlanilha /> },
-        { path: "deep-search/:idPlanilha?", element: <DeepSearch /> },
+        { path: "deep-search/:idPlanilha", element: <DeepSearch /> },
       ],
     },
   ];

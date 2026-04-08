@@ -53,59 +53,10 @@ const data = {
       icon: Home,
     },
     {
-      title: "Busca PNCP",
-      url: "/deep-search",
-      icon: Search,
-    },
-    {
       title: "Planilhas",
       url: "/planilhas",
       icon: FileSpreadsheet,
     },
-    // {
-    //   title: "Tickets",
-    //   url: "#",
-    //   icon: Ticket,
-    //   items: [
-    //     {
-    //       title: "Abrir Ticket",
-    //       url: "/abrir-ticket",
-    //     },
-    //     {
-    //       title: "Listar Tickets",
-    //       url: "/tasks",
-    //     },
-    //   ],
-    // },
-    // {
-    //   title: "Rede Social",
-    //   url: "#",
-    //   icon: Share2,
-    //   items: [],
-    // },
-    // {
-    //   title: "Treinamentos",
-    //   url: "#",
-    //   icon: BookOpen,
-    //   items: [
-    //     {
-    //       title: "Comercial",
-    //       url: "/treinamento",
-    //     },
-    //     {
-    //       title: "Logistica",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Financeiro",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Faturamento",
-    //       url: "#",
-    //     },
-    // ],
-    // },
   ],
   projects: [
     {
@@ -137,7 +88,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             className="data-[slot=sidebar-menu-button]:!p-1.5"
           >
             <span className="text-lg font-semibold text-primary">
-              REACT-AUTH
+              Estimador de Preços
             </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
