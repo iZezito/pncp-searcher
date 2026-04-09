@@ -383,8 +383,7 @@ new Worker<DeepSearchJobData>(
   },
   {
     connection: {
-      host: "localhost",
-      port: 6379,
+      url: Bun.env.REDIS_URL,
     },
     concurrency: 3,
   },
