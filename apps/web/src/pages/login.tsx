@@ -28,6 +28,7 @@ import {
 
 import { useAuth } from "@/contexts/AuthContext";
 import { loginSchema, type LoginData } from "@/types";
+import { apiUrl } from "@/lib/utils";
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export function LoginForm() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:3000/auth/oauth/google";
+    window.location.href = `${apiUrl}/auth/oauth/google`;
   };
 
   return (

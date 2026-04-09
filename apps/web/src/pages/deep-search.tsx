@@ -30,6 +30,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { io, Socket } from "socket.io-client";
 import { useQuery } from "@tanstack/react-query";
+import { apiUrl } from "@/lib/utils";
 
 type SearchStatus = "idle" | "searching" | "paused" | "stopped" | "completed";
 
@@ -57,7 +58,7 @@ export default function DeepSearch() {
   });
 
   useEffect(() => {
-    const socket = io("http://localhost:3000", {
+    const socket = io(apiUrl, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
