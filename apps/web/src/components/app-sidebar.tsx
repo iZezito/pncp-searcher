@@ -7,7 +7,6 @@ import {
   Map,
   PieChart,
   Home,
-  Search,
   FileSpreadsheet,
 } from "lucide-react";
 
