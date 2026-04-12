@@ -1,10 +1,16 @@
 import React from "react";
-import { Loader } from "./ui/loader";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "./ui/empty";
 import { XCircle } from "lucide-react";
-import { Button } from "./ui/button";
 import type { AxiosError } from "axios";
 import type { ApiError } from "@/types";
+import { Loader } from "./ui/loader";
+import { Button } from "./ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "./ui/empty";
 
 interface Props {
   loading: boolean;
@@ -48,9 +54,10 @@ const ContentLoader: React.FC<Props> = ({
   }
 
   if (error) {
-    console.log(error);
-    const message = (error as AxiosError<ApiError>).response?.data.message || "Não foi possível carregar os dados.";
-    console.log(message);
+    const message =
+      (error as AxiosError<ApiError>).response?.data.message ||
+      "Nao foi possivel carregar os dados.";
+
     return (
       <Empty>
         <EmptyHeader>
@@ -58,12 +65,12 @@ const ContentLoader: React.FC<Props> = ({
             <XCircle className="h-16 w-16 text-red-500" />
           </EmptyMedia>
           <EmptyTitle>Algo deu errado</EmptyTitle>
-          <EmptyDescription>
-            {message}
-          </EmptyDescription>
+          <EmptyDescription>{message}</EmptyDescription>
           {typeof onRetry === "function" && (
             <div className="mt-4">
-              <Button onClick={onRetry}>{retryLabel || "Tentar novamente"}</Button>
+              <Button onClick={onRetry}>
+                {retryLabel || "Tentar novamente"}
+              </Button>
             </div>
           )}
         </EmptyHeader>
@@ -79,9 +86,7 @@ const ContentLoader: React.FC<Props> = ({
             <XCircle className="h-16 w-16 text-red-500" />
           </EmptyMedia>
           <EmptyTitle>Nenhum dado encontrado!</EmptyTitle>
-          <EmptyDescription>
-          {noContent}
-        </EmptyDescription>
+          <EmptyDescription>{noContent}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     );

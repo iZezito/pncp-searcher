@@ -36,6 +36,7 @@ const editItemSchema = z.object({
   unidade: z.string().min(1, "Unidade é obrigatória"),
   valor: z.coerce.number<number>().min(0, "Deve ser >= 0"),
   fonte: z.string(),
+  link: z.string(),
 });
 
 type EditItemValues = z.infer<typeof editItemSchema>;
@@ -61,6 +62,7 @@ function EditItemForm({
       unidade: item.unidade,
       valor: item.valor,
       fonte: item.fonte ?? "",
+      link: item.link ?? "",
     },
   });
 
@@ -102,7 +104,7 @@ function EditItemForm({
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input {...field} className="w-20" />
+                  <Input {...field} className="w-24" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -135,7 +137,25 @@ function EditItemForm({
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input {...field} className="min-w-20" />
+                  <Input {...field} className="min-w-32" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </TableCell>
+        <TableCell>
+          <FormField
+            control={form.control}
+            name="link"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    className="min-w-40"
+                    placeholder="https://..."
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -171,7 +191,6 @@ function EditItemForm({
     );
   }
 
-  // Card layout for mobile
   return (
     <Form {...form}>
       <form
@@ -191,6 +210,7 @@ function EditItemForm({
             </FormItem>
           )}
         />
+
         <div className="grid grid-cols-2 gap-2">
           <FormField
             control={form.control}
@@ -219,6 +239,7 @@ function EditItemForm({
             )}
           />
         </div>
+
         <div className="grid grid-cols-2 gap-2">
           <FormField
             control={form.control}
@@ -247,7 +268,22 @@ function EditItemForm({
             )}
           />
         </div>
-        <div className="flex gap-2 justify-end">
+
+        <FormField
+          control={form.control}
+          name="link"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Link</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="https://..." />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end gap-2">
           <Button
             type="button"
             size="sm"
@@ -260,12 +296,12 @@ function EditItemForm({
           <Button type="submit" size="sm" disabled={isPending}>
             {isPending ? (
               <>
-                <Loader2 className="size-4 animate-spin mr-1" />
+                <Loader2 className="mr-1 size-4 animate-spin" />
                 Salvando...
               </>
             ) : (
               <>
-                <Save className="size-4 mr-1" />
+                <Save className="mr-1 size-4" />
                 Salvar
               </>
             )}
@@ -274,6 +310,21 @@ function EditItemForm({
       </form>
     </Form>
   );
+}
+
+function getEmptyItem(planilhaId: string, numero: number): ItemPlanilha {
+  return {
+    id: "new",
+    planilhaId,
+    numero,
+    descricao: "",
+    quantidade: 0,
+    unidade: "",
+    valor: 0,
+    fonte: "",
+    link: "",
+    createdAt: "",
+  };
 }
 
 export default function EditarPlanilha() {
@@ -294,6 +345,7 @@ export default function EditarPlanilha() {
 
   const nextNumero =
     itens.length > 0 ? Math.max(...itens.map((i) => i.numero)) + 1 : 1;
+  const shouldShowEmptyState = itens.length === 0 && !addingItem;
 
   const createMutation = useMutation({
     mutationFn: async (data: EditItemValues) => {
@@ -339,17 +391,17 @@ export default function EditarPlanilha() {
         { label: "Editar" },
       ]}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate("/planilhas")}
           >
-            <ArrowLeft className="size-4 mr-1" />
+            <ArrowLeft className="mr-1 size-4" />
             Voltar
           </Button>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
             Editar Planilha
           </h1>
         </div>
@@ -361,7 +413,7 @@ export default function EditarPlanilha() {
           }}
           disabled={addingItem}
         >
-          <Plus className="size-4 mr-1" />
+          <Plus className="mr-1 size-4" />
           Adicionar Item
         </Button>
       </div>
@@ -377,23 +429,23 @@ export default function EditarPlanilha() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : itens.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
+          ) : shouldShowEmptyState ? (
+            <p className="py-8 text-center text-muted-foreground">
               Nenhum item encontrado.
             </p>
           ) : (
             <>
-              {/* Desktop table */}
-              <div className="hidden lg:block overflow-x-auto">
+              <div className="hidden overflow-x-auto lg:block">
                 <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-16">Item</TableHead>
-                      <TableHead className="w-1/4">Descrição</TableHead>
+                      <TableHead className="w-[24%]">Descrição</TableHead>
                       <TableHead className="w-20">Qtd</TableHead>
                       <TableHead className="w-24">Unidade</TableHead>
                       <TableHead className="w-24">Valor</TableHead>
-                      <TableHead className="w-1/5">Fonte</TableHead>
+                      <TableHead className="w-[18%]">Fonte</TableHead>
+                      <TableHead className="w-[18%]">Link</TableHead>
                       <TableHead className="w-28 text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -429,6 +481,20 @@ export default function EditarPlanilha() {
                                 {item.fonte || "—"}
                               </span>
                             </TableCell>
+                            <TableCell>
+                              {item.link ? (
+                                <a
+                                  href={item.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block overflow-hidden text-ellipsis whitespace-nowrap text-primary hover:underline"
+                                >
+                                  {item.link}
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-right">
                               <Button
                                 size="sm"
@@ -442,21 +508,12 @@ export default function EditarPlanilha() {
                         )}
                       </TableRow>
                     ))}
-                    {addingItem && (
+
+                    {addingItem && id && (
                       <TableRow>
                         <TableCell>{nextNumero}</TableCell>
                         <EditItemForm
-                          item={{
-                            id: "new",
-                            planilhaId: id!,
-                            numero: nextNumero,
-                            descricao: "",
-                            quantidade: 0,
-                            unidade: "",
-                            valor: 0,
-                            fonte: "",
-                            createdAt: "",
-                          }}
+                          item={getEmptyItem(id, nextNumero)}
                           layout="table"
                           isPending={createMutation.isPending}
                           onSave={(data) => createMutation.mutate(data)}
@@ -468,12 +525,11 @@ export default function EditarPlanilha() {
                 </Table>
               </div>
 
-              {/* Mobile cards */}
               <div className="flex flex-col gap-3 lg:hidden">
                 {itens.map((item) => (
                   <Card key={item.id} className="overflow-hidden">
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="mb-2 flex items-center justify-between">
                         <span className="text-sm font-semibold text-muted-foreground">
                           Item {item.numero}
                         </span>
@@ -525,35 +581,36 @@ export default function EditarPlanilha() {
                             </span>
                           </div>
                           {item.fonte && (
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="truncate text-xs text-muted-foreground">
                               Fonte: {item.fonte}
                             </p>
+                          )}
+                          {item.link && (
+                            <a
+                              href={item.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block break-all text-xs text-primary hover:underline"
+                            >
+                              {item.link}
+                            </a>
                           )}
                         </div>
                       )}
                     </CardContent>
                   </Card>
                 ))}
-                {addingItem && (
+
+                {addingItem && id && (
                   <Card className="overflow-hidden border-dashed">
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="mb-2 flex items-center justify-between">
                         <span className="text-sm font-semibold text-muted-foreground">
                           Novo Item #{nextNumero}
                         </span>
                       </div>
                       <EditItemForm
-                        item={{
-                          id: "new",
-                          planilhaId: id!,
-                          numero: nextNumero,
-                          descricao: "",
-                          quantidade: 0,
-                          unidade: "",
-                          valor: 0,
-                          fonte: "",
-                          createdAt: "",
-                        }}
+                        item={getEmptyItem(id, nextNumero)}
                         layout="card"
                         isPending={createMutation.isPending}
                         onSave={(data) => createMutation.mutate(data)}

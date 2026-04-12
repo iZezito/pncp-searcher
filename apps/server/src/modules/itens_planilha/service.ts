@@ -38,7 +38,15 @@ export abstract class ItensPlanilhaService {
     return await db.delete(itens).where(eq(itens.id, id));
   }
 
-  static async updateValorFonte(id: string, valor: number, fonte: string) {
-    return await db.update(itens).set({ valor, fonte }).where(eq(itens.id, id));
+  static async updateValorFonte(
+    id: string,
+    valor: number,
+    fonte: string,
+    link?: string,
+  ) {
+    return await db
+      .update(itens)
+      .set(link === undefined ? { valor, fonte } : { valor, fonte, link })
+      .where(eq(itens.id, id));
   }
 }

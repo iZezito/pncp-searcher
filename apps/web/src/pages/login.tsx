@@ -62,7 +62,7 @@ export function LoginForm() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = `${apiUrl}/auth/oauth/google`;
+    window.location.href = `${apiUrl}auth/oauth/google`;
   };
 
   return (

@@ -1,0 +1,1 @@
+ALTER TABLE "itens" ADD COLUMN "link" text DEFAULT '' NOT NULL;

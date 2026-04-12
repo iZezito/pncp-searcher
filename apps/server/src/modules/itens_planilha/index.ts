@@ -22,6 +22,7 @@ export const itensController = new Elysia({
       const result = await ItensPlanilhaService.createOne({
         ...body,
         fonte: body.fonte ?? "",
+        link: body.link ?? "",
         planilhaId: params.planilhaId,
       });
       return result[0];
@@ -34,6 +35,7 @@ export const itensController = new Elysia({
         unidade: t.String({ minLength: 1 }),
         valor: t.Number({ minimum: 0 }),
         fonte: t.Optional(t.String()),
+        link: t.Optional(t.String()),
       }),
       params: t.Object({
         planilhaId: t.String(),
@@ -71,6 +73,7 @@ export const itensController = new Elysia({
         params.itemPlanilhaId,
         body.valor,
         body.fonte,
+        body.link,
       );
       return { success: true };
     },
@@ -78,6 +81,7 @@ export const itensController = new Elysia({
       body: t.Object({
         valor: t.Number(),
         fonte: t.String(),
+        link: t.Optional(t.String()),
       }),
       params: t.Object({
         itemPlanilhaId: t.String(),

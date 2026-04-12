@@ -1,3 +1,21 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "react-router";
+import { io } from "socket.io-client";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Wifi,
+  WifiOff,
+  Pause,
+  Play,
+  Square,
+  Trash2,
+  Loader2,
+  Eye,
+  Check,
+  Pin,
+  PinOff,
+} from "lucide-react";
+import { toast } from "sonner";
 import { ResultCard } from "@/components/deep-search/result-card";
 import { SearchForm } from "@/components/deep-search/search-form";
 import { Badge } from "@/components/ui/badge";
@@ -13,23 +31,6 @@ import {
 import api from "@/services/api";
 import type { FoundItem } from "@/types/deep-search";
 import type { ItemPlanilha } from "@/types/planilha";
-import {
-  Wifi,
-  WifiOff,
-  Pause,
-  Play,
-  Square,
-  Trash2,
-  Loader2,
-  Eye,
-  Check,
-  Pin,
-  PinOff,
-} from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router";
-import { io, Socket } from "socket.io-client";
-import { useQuery } from "@tanstack/react-query";
 import { apiUrl } from "@/lib/utils";
 
 type SearchStatus = "idle" | "searching" | "paused" | "stopped" | "completed";
@@ -42,9 +43,7 @@ export default function DeepSearch() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [itensModalOpen, setItensModalOpen] = useState(false);
   const [pinnedItemId, setPinnedItemId] = useState<string | null>(null);
-  const socketRef = useRef<Socket | null>(null);
-  const scrollPositionRef = useRef<number>(0);
-  const modalScrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollPositionRef = useRef(0);
 
   const { data: planilhaItens = [], isLoading: isLoadingItens } = useQuery<
     ItemPlanilha[]
@@ -64,10 +63,7 @@ export default function DeepSearch() {
       reconnectionAttempts: 5,
     });
 
-    socketRef.current = socket;
-
     socket.on("connect", () => {
-      console.log("✅ Conectado ao socket:", socket.id);
       setConnected(true);
 
       if (idPlanilha) {
@@ -76,37 +72,30 @@ export default function DeepSearch() {
     });
 
     socket.on("disconnect", () => {
-      console.log("❌ Desconectado do socket");
       setConnected(false);
     });
 
     socket.on("search-result", (data: FoundItem) => {
-      console.log("📥 Recebido:", data);
       setItens((prev) => [...prev, data]);
     });
 
-    socket.on("search-started", (data: { jobId: string }) => {
-      console.log("🚀 Busca iniciada:", data);
+    socket.on("search-started", () => {
       setSearchStatus("searching");
     });
 
-    socket.on("search-completed", (data: { totalEncontrados: number }) => {
-      console.log("✅ Busca concluída:", data);
+    socket.on("search-completed", () => {
       setSearchStatus("completed");
     });
 
-    socket.on("search-paused", (data: { jobId: string }) => {
-      console.log("⏸️ Busca pausada:", data);
+    socket.on("search-paused", () => {
       setSearchStatus("paused");
     });
 
-    socket.on("search-resumed", (data: { jobId: string }) => {
-      console.log("▶️ Busca retomada:", data);
+    socket.on("search-resumed", () => {
       setSearchStatus("searching");
     });
 
-    socket.on("search-stopped", (data: { jobId: string }) => {
-      console.log("🛑 Busca parada:", data);
+    socket.on("search-stopped", () => {
       setSearchStatus("stopped");
     });
 
@@ -138,20 +127,28 @@ export default function DeepSearch() {
           setSearchStatus("stopped");
         }
       })
-      .catch((err) => {
-        console.warn("Não foi possível recuperar status do job:", err);
-      });
+      .catch(() => {});
   }, [idPlanilha]);
 
   const handleSearch = async (busca: string, palavrasChave: string[]) => {
-    setItens([]);
-    setSearchStatus("searching");
-    const response = await api.post("/deep-search", {
-      busca,
-      palavrasChave,
-      planilhaId: idPlanilha,
-    });
-    setJobId(response.data.jobId);
+    if (searchStatus === "searching" || searchStatus === "paused") {
+      return;
+    }
+
+    try {
+      setItens([]);
+      setJobId(null);
+      setSearchStatus("searching");
+      const response = await api.post("/deep-search", {
+        busca,
+        palavrasChave,
+        planilhaId: idPlanilha,
+      });
+      setJobId(response.data.jobId);
+    } catch {
+      setSearchStatus("idle");
+      toast.error("Erro ao iniciar busca");
+    }
   };
 
   const handleStop = useCallback(async () => {
@@ -159,8 +156,8 @@ export default function DeepSearch() {
     try {
       await api.delete(`/deep-search/jobs/${jobId}`);
       setSearchStatus("stopped");
-    } catch (err) {
-      console.error("Erro ao parar busca:", err);
+    } catch {
+      toast.error("Erro ao parar busca");
     }
   }, [jobId]);
 
@@ -169,8 +166,8 @@ export default function DeepSearch() {
     try {
       await api.post(`/deep-search/jobs/${jobId}/pause`);
       setSearchStatus("paused");
-    } catch (err) {
-      console.error("Erro ao pausar busca:", err);
+    } catch {
+      toast.error("Erro ao pausar busca");
     }
   }, [jobId]);
 
@@ -179,8 +176,8 @@ export default function DeepSearch() {
     try {
       await api.post(`/deep-search/jobs/${jobId}/resume`);
       setSearchStatus("searching");
-    } catch (err) {
-      console.error("Erro ao retomar busca:", err);
+    } catch {
+      toast.error("Erro ao retomar busca");
     }
   }, [jobId]);
 
@@ -188,19 +185,22 @@ export default function DeepSearch() {
     setItens([]);
   }, []);
 
+  const isSearchLocked =
+    searchStatus === "searching" || searchStatus === "paused";
+
   const statusLabel: Record<SearchStatus, string> = {
     idle: "Aguardando busca",
     paused: "Busca pausada",
     searching: "Buscando...",
     stopped: "Busca parada",
-    completed: "Busca concluída",
+    completed: "Busca concluida",
   };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <header className="mb-8">
-          <div className="flex items-center justify-between mb-2">
+          <div className="mb-2 flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">App de Busca</h1>
             <div className="flex items-center gap-2">
               {idPlanilha && (
@@ -218,11 +218,7 @@ export default function DeepSearch() {
                 </Button>
               )}
               <Badge
-                variant={
-                  searchStatus === "searching" || searchStatus === "paused"
-                    ? "default"
-                    : "secondary"
-                }
+                variant={isSearchLocked ? "default" : "secondary"}
                 className="gap-1.5"
               >
                 {searchStatus === "searching" && (
@@ -261,29 +257,33 @@ export default function DeepSearch() {
 
         <main className="flex flex-col gap-8">
           <section className="rounded-xl border bg-card p-6 shadow-sm">
-            <SearchForm onSearch={handleSearch} />
+            <SearchForm
+              onSearch={handleSearch}
+              isSearchLocked={isSearchLocked}
+            />
           </section>
 
           {(() => {
             const pinnedItem = planilhaItens.find((i) => i.id === pinnedItemId);
             if (!pinnedItem) return null;
+
             return (
-              <section className="rounded-xl border border-primary/30 bg-card shadow-sm overflow-hidden">
-                <div className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-xs font-semibold text-primary">
+              <section className="overflow-hidden rounded-xl border border-primary/30 bg-card shadow-sm">
+                <div className="flex items-center gap-1.5 px-4 pb-1 pt-3 text-xs font-semibold text-primary">
                   <Pin className="size-3" />
                   Item a ser buscado
                 </div>
                 <div className="flex items-center gap-3 px-4 pb-4 pt-1">
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="shrink-0 flex items-center justify-center size-6 rounded bg-primary/10 text-xs font-bold">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold">
                         {pinnedItem.numero}
                       </span>
-                      <span className="text-sm font-medium truncate">
+                      <span className="truncate text-sm font-medium">
                         {pinnedItem.descricao}
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 ml-8 text-xs text-muted-foreground">
+                    <div className="ml-8 mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span>
                         Qtd:{" "}
                         <strong className="text-foreground">
@@ -301,21 +301,31 @@ export default function DeepSearch() {
                         <strong className="text-foreground">
                           {pinnedItem.valor > 0
                             ? `R$ ${pinnedItem.valor.toFixed(2)}`
-                            : "—"}
+                            : "-"}
                         </strong>
                       </span>
                     </div>
                     {pinnedItem.fonte && (
-                      <p className="mt-1 ml-8 text-xs text-muted-foreground flex items-center gap-1">
-                        <Check className="size-3 text-green-500 shrink-0" />
+                      <p className="ml-8 mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Check className="size-3 shrink-0 text-green-500" />
                         {pinnedItem.fonte}
                       </p>
+                    )}
+                    {pinnedItem.link && (
+                      <a
+                        href={pinnedItem.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-8 mt-1 block break-all text-xs text-primary hover:underline"
+                      >
+                        {pinnedItem.link}
+                      </a>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={() => setPinnedItemId(null)}
-                    className="shrink-0 p-1 rounded hover:bg-muted transition-colors"
+                    className="shrink-0 rounded p-1 transition-colors hover:bg-muted"
                     title="Desafixar item"
                   >
                     <PinOff className="size-4 text-muted-foreground" />
@@ -326,7 +336,7 @@ export default function DeepSearch() {
           })()}
 
           <section>
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">
                 Resultados
               </h2>
@@ -378,8 +388,7 @@ export default function DeepSearch() {
                 )}
                 {itens.length > 0 && (
                   <span className="text-sm text-muted-foreground">
-                    {itens.length}{" "}
-                    {itens.length === 1 ? "resultado" : "resultados"}
+                    {itens.length} {itens.length === 1 ? "resultado" : "resultados"}
                   </span>
                 )}
               </div>
@@ -388,15 +397,15 @@ export default function DeepSearch() {
             <ScrollArea className="h-[400px] rounded-xl border bg-card/50 p-4">
               {itens.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
-                  <p className="text-muted-foreground text-center">
+                  <p className="text-center text-muted-foreground">
                     {searchStatus === "searching"
                       ? "Buscando resultados..."
                       : searchStatus === "paused"
                         ? "Busca pausada. Clique em Continuar para retomar."
                         : searchStatus === "stopped"
-                          ? "Busca foi parada pelo usuário."
+                          ? "Busca foi parada pelo usuario."
                           : searchStatus === "completed"
-                            ? "Busca concluída. Nenhum resultado encontrado."
+                            ? "Busca concluida. Nenhum resultado encontrado."
                             : "Nenhuma busca realizada ainda."}
                   </p>
                 </div>
@@ -417,7 +426,7 @@ export default function DeepSearch() {
       </div>
 
       <Dialog open={itensModalOpen} onOpenChange={setItensModalOpen}>
-        <DialogContent className="sm:max-w-lg max-w-[95vw]">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="size-5" />
@@ -438,8 +447,8 @@ export default function DeepSearch() {
                     ?.querySelector(
                       '[data-slot="scroll-area-viewport"]',
                     ) as HTMLDivElement | null;
+
                   if (viewport) {
-                    modalScrollRef.current = viewport;
                     requestAnimationFrame(() => {
                       viewport.scrollTop = scrollPositionRef.current;
                     });
@@ -471,15 +480,15 @@ export default function DeepSearch() {
                     .map((item) => (
                       <div
                         key={item.id}
-                        className={`rounded-md border ${item.id === pinnedItemId ? "ring-2 ring-primary/50" : ""} ${item.valor > 0 ? "bg-primary" : "bg-background"} p-3 text-sm overflow-hidden`}
+                        className={`overflow-hidden rounded-md border p-3 text-sm ${
+                          item.id === pinnedItemId ? "ring-2 ring-primary/50" : ""
+                        } ${item.valor > 0 ? "bg-primary" : "bg-background"}`}
                       >
-                        <div className="flex items-start gap-2 min-w-0">
-                          <span
-                            className={`shrink-0 flex items-center justify-center size-6 rounded bg-white/10 text-xs font-bold mt-0.5`}
-                          >
+                        <div className="flex min-w-0 items-start gap-2">
+                          <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded bg-white/10 text-xs font-bold">
                             {item.numero}
                           </span>
-                          <span className="font-medium break-words flex-1">
+                          <span className="flex-1 break-words font-medium">
                             {item.descricao}
                           </span>
                           <button
@@ -489,7 +498,7 @@ export default function DeepSearch() {
                                 pinnedItemId === item.id ? null : item.id,
                               )
                             }
-                            className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                            className="shrink-0 rounded p-1 transition-colors hover:bg-white/10"
                             title={
                               pinnedItemId === item.id
                                 ? "Desafixar item"
@@ -503,7 +512,7 @@ export default function DeepSearch() {
                             )}
                           </button>
                         </div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 ml-8 text-xs text-muted-foreground">
+                        <div className="ml-8 mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                           <span>
                             Qtd:{" "}
                             <strong className="text-foreground">
@@ -519,17 +528,25 @@ export default function DeepSearch() {
                           <span>
                             Valor:{" "}
                             <strong className="text-foreground">
-                              {item.valor > 0
-                                ? `R$ ${item.valor.toFixed(2)}`
-                                : "—"}
+                              {item.valor > 0 ? `R$ ${item.valor.toFixed(2)}` : "-"}
                             </strong>
                           </span>
                         </div>
                         {item.fonte && (
-                          <p className="mt-1.5 ml-8 text-xs text-muted-foreground break-words flex items-start gap-1">
-                            <Check className="size-3 text-green-500 shrink-0" />
+                          <p className="ml-8 mt-1.5 flex items-start gap-1 break-words text-xs text-muted-foreground">
+                            <Check className="size-3 shrink-0 text-green-500" />
                             {item.fonte}
                           </p>
+                        )}
+                        {item.link && (
+                          <a
+                            href={item.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-8 mt-1.5 block break-all text-xs text-primary hover:underline"
+                          >
+                            {item.link}
+                          </a>
                         )}
                       </div>
                     ))}

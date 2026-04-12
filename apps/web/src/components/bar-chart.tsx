@@ -1,18 +1,17 @@
-import { Bar, BarChart, XAxis } from "recharts"
+import { Bar, BarChart, XAxis } from "recharts";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart"
-
+} from "@/components/ui/chart";
 
 const chartConfig = {
   acertos: {
@@ -23,16 +22,19 @@ const chartConfig = {
     label: "Erros",
     color: "hsl(var(--chart-2))",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
-// Componente reutilizável
 interface BarChartAcertosProps {
-  data: { area: string; acertos: number; erros: number }[]
-  title: string
-  description?: string
+  data: { area: string; acertos: number; erros: number }[];
+  title: string;
+  description?: string;
 }
 
-export function BarChartAcertos({ data, title, description }: BarChartAcertosProps) {
+export function BarChartAcertos({
+  data,
+  title,
+  description,
+}: BarChartAcertosProps) {
   return (
     <Card>
       <CardHeader className="items-center pb-0">
@@ -68,5 +70,5 @@ export function BarChartAcertos({ data, title, description }: BarChartAcertosPro
         </ChartContainer>
       </CardContent>
     </Card>
-  )
+  );
 }

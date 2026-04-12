@@ -147,6 +147,7 @@ export const itens = pgTable(
     unidade: text().notNull(),
     valor: doublePrecision().notNull(),
     fonte: text().notNull(),
+    link: text().default("").notNull(),
     createdAt: timestamp({ precision: 3, withTimezone: true })
       .defaultNow()
       .notNull(),

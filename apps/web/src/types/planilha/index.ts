@@ -13,5 +13,6 @@ export type ItemPlanilha = {
   unidade: string;
   valor: number;
   fonte: string;
+  link: string;
   createdAt: string;
 };

@@ -60,16 +60,21 @@ export function LinkToPlanilhaModal({
       return api.put(`/itens/${selectedItemId}/vincular`, {
         valor: result.valor,
         fonte: result.fonte,
+        link: result.link,
       });
     },
     onSuccess: () => {
-      // Update the itens-planilha cache locally without refetching
       queryClient.setQueryData<ItemPlanilha[]>(
         ["itens-planilha", planilhaId],
         (old) =>
           old?.map((item) =>
             item.id === selectedItemId
-              ? { ...item, valor: result.valor, fonte: result.fonte }
+              ? {
+                  ...item,
+                  valor: result.valor,
+                  fonte: result.fonte,
+                  link: result.link,
+                }
               : item,
           ),
       );
@@ -94,11 +99,11 @@ export function LinkToPlanilhaModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-w-[95vw]">
+      <DialogContent className="max-w-[95vw] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="size-5" />
-            Vincular à Planilha
+            Vincular a Planilha
           </DialogTitle>
           <DialogDescription>
             Selecione o item da planilha para vincular este resultado.
@@ -107,11 +112,11 @@ export function LinkToPlanilhaModal({
 
         <div className="flex flex-col gap-4 py-2">
           <div className="rounded-lg border bg-muted/50 p-3">
-            <p className="text-sm font-medium mb-1">Resultado selecionado:</p>
-            <p className="text-sm text-muted-foreground line-clamp-2">
+            <p className="mb-1 text-sm font-medium">Resultado selecionado:</p>
+            <p className="line-clamp-2 text-sm text-muted-foreground">
               {result.descricao}
             </p>
-            <p className="text-sm font-semibold mt-1">
+            <p className="mt-1 text-sm font-semibold">
               Valor: R$ {result.valor.toFixed(2)}
             </p>
           </div>
@@ -130,7 +135,7 @@ export function LinkToPlanilhaModal({
                     variant="outline"
                     role="combobox"
                     aria-expanded={comboboxOpen}
-                    className="w-full shrink min-w-0 justify-between overflow-hidden"
+                    className="w-full min-w-0 shrink justify-between overflow-hidden"
                   >
                     <span className="min-w-0 truncate text-left">
                       {selectedItem
@@ -182,7 +187,7 @@ export function LinkToPlanilhaModal({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -198,7 +203,7 @@ export function LinkToPlanilhaModal({
           >
             {vincularMutation.isPending ? (
               <>
-                <Loader2 className="size-4 animate-spin mr-1" />
+                <Loader2 className="mr-1 size-4 animate-spin" />
                 Vinculando...
               </>
             ) : (

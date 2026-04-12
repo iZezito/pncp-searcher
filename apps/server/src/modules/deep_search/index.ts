@@ -24,7 +24,7 @@ export const deepSearchController = new Elysia({
         palavrasChave: t.Array(t.String()),
         planilhaId: t.Optional(t.String()),
       }),
-    },
+    }
   )
   .delete(
     "/jobs/:jobId",
@@ -33,17 +33,18 @@ export const deepSearchController = new Elysia({
 
       if (!job) {
         set.status = 404;
-        return { message: "Job não encontrado" };
+        return { message: "Job nao encontrado" };
       }
 
       const state = await job.getState();
 
       if (state === "active") {
-        // Mark for cancellation — the worker checks this set each iteration
         cancelledJobs.add(params.jobId);
-        // Also clear from paused set if it was paused
         pausedJobs.delete(params.jobId);
-        return { message: "Job marcado para cancelamento", jobId: params.jobId };
+        return {
+          message: "Job marcado para cancelamento",
+          jobId: params.jobId,
+        };
       }
 
       if (state === "waiting" || state === "delayed") {
@@ -51,13 +52,16 @@ export const deepSearchController = new Elysia({
         return { message: "Job removido da fila", jobId: params.jobId };
       }
 
-      return { message: `Job já está em estado: ${state}`, jobId: params.jobId };
+      return {
+        message: `Job ja esta em estado: ${state}`,
+        jobId: params.jobId,
+      };
     },
     {
       params: t.Object({
         jobId: t.String(),
       }),
-    },
+    }
   )
   .post(
     "/jobs/:jobId/pause",
@@ -66,13 +70,16 @@ export const deepSearchController = new Elysia({
 
       if (!job) {
         set.status = 404;
-        return { message: "Job não encontrado" };
+        return { message: "Job nao encontrado" };
       }
 
       const state = await job.getState();
 
       if (state !== "active") {
-        return { message: `Job não está ativo (estado: ${state})`, jobId: params.jobId };
+        return {
+          message: `Job nao esta ativo (estado: ${state})`,
+          jobId: params.jobId,
+        };
       }
 
       pausedJobs.add(params.jobId);
@@ -85,7 +92,7 @@ export const deepSearchController = new Elysia({
       params: t.Object({
         jobId: t.String(),
       }),
-    },
+    }
   )
   .post(
     "/jobs/:jobId/resume",
@@ -94,7 +101,7 @@ export const deepSearchController = new Elysia({
 
       if (!job) {
         set.status = 404;
-        return { message: "Job não encontrado" };
+        return { message: "Job nao encontrado" };
       }
 
       pausedJobs.delete(params.jobId);
@@ -107,12 +114,17 @@ export const deepSearchController = new Elysia({
       params: t.Object({
         jobId: t.String(),
       }),
-    },
+    }
   )
   .get(
     "/jobs/:planilhaId/status",
     async ({ params }) => {
-      const jobs = await queue.getJobs(["active", "waiting", "completed", "failed"]);
+      const jobs = await queue.getJobs([
+        "active",
+        "waiting",
+        "completed",
+        "failed",
+      ]);
       const planilhaJobs = jobs
         .filter((j) => j.data?.planilhaId === params.planilhaId)
         .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
@@ -131,5 +143,5 @@ export const deepSearchController = new Elysia({
       params: t.Object({
         planilhaId: t.String(),
       }),
-    },
+    }
   );

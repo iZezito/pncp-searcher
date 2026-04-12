@@ -15,26 +15,22 @@ import {
   FormMessage,
 } from "../ui/form";
 
-const searchFormSchema = z
-  .object({
-    searchTerm: z.string(),
-    keywords: z.array(z.string()),
-  })
-  .refine(
-    (data) => data.searchTerm.trim().length > 0 || data.keywords.length > 0,
-    {
-      message: "Informe um termo de busca ou pelo menos uma palavra-chave.",
-      path: ["searchTerm"],
-    },
-  );
+const searchFormSchema = z.object({
+  searchTerm: z.string(),
+  keywords: z.array(z.string()).min(1, "Adicione ao menos uma palavra-chave."),
+});
 
 type SearchFormValues = z.infer<typeof searchFormSchema>;
 
 interface SearchFormProps {
   onSearch: (searchTerm: string, keywords: string[]) => Promise<void>;
+  isSearchLocked?: boolean;
 }
 
-export function SearchForm({ onSearch }: SearchFormProps) {
+export function SearchForm({
+  onSearch,
+  isSearchLocked = false,
+}: SearchFormProps) {
   const form = useForm<SearchFormValues>({
     resolver: zodResolver(searchFormSchema),
     defaultValues: {
@@ -45,6 +41,7 @@ export function SearchForm({ onSearch }: SearchFormProps) {
   });
 
   const keywords = form.watch("keywords");
+  const keywordsError = form.formState.errors.keywords?.message;
 
   const handleAddKeyword = (keyword: string) => {
     form.setValue("keywords", [...keywords, keyword], { shouldValidate: true });
@@ -95,17 +92,29 @@ export function SearchForm({ onSearch }: SearchFormProps) {
           onAddKeyword={handleAddKeyword}
           onRemoveKeyword={handleRemoveKeyword}
         />
+        {keywordsError && (
+          <p className="text-sm font-medium text-destructive">{keywordsError}</p>
+        )}
 
         <Button
           type="submit"
           size="lg"
-          disabled={form.formState.isSubmitting || !form.formState.isValid}
+          disabled={
+            form.formState.isSubmitting ||
+            isSearchLocked ||
+            !form.formState.isValid
+          }
           className="w-full"
         >
           {form.formState.isSubmitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Buscando...
+              Iniciando busca...
+            </>
+          ) : isSearchLocked ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Busca em andamento
             </>
           ) : (
             <>

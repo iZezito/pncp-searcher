@@ -118,27 +118,34 @@ export function CreatePlanilhaDialog({
               )}
             />
 
-            <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30 p-3">
+            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
               <div className="flex items-start gap-2">
-                <Info className="size-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <Info className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
                 <div className="flex flex-col gap-1.5">
                   <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
                     Formato esperado da planilha
                   </p>
                   <p className="text-xs text-blue-700 dark:text-blue-400">
-                    O cabeçalho (primeira linha) do arquivo Excel deve conter exatamente estas colunas:
+                    O cabeçalho da primeira linha do Excel deve conter estas
+                    colunas.
                   </p>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {["ITEM", "UNIDADE", "QUANTIDADE", "DESCRIÇÃO", "VALOR", "FONTE"].map(
-                      (col) => (
-                        <span
-                          key={col}
-                          className="inline-flex items-center rounded-md bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 text-xs font-mono font-medium text-blue-800 dark:text-blue-300 ring-1 ring-inset ring-blue-300 dark:ring-blue-700"
-                        >
-                          {col}
-                        </span>
-                      ),
-                    )}
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {[
+                      "ITEM",
+                      "UNIDADE",
+                      "QUANTIDADE",
+                      "DESCRIÇÃO",
+                      "VALOR",
+                      "FONTE",
+                      "LINK",
+                    ].map((col) => (
+                      <span
+                        key={col}
+                        className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-mono font-medium text-blue-800 ring-1 ring-inset ring-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:ring-blue-700"
+                      >
+                        {col}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -154,11 +161,11 @@ export function CreatePlanilhaDialog({
                   onClick={() => fileInputRef.current?.click()}
                   disabled={createMutation.isPending}
                 >
-                  <Upload className="size-4 mr-1" />
+                  <Upload className="mr-1 size-4" />
                   {file ? "Trocar" : "Selecionar"}
                 </Button>
                 {file && (
-                  <span className="text-sm text-muted-foreground truncate max-w-50">
+                  <span className="max-w-50 truncate text-sm text-muted-foreground">
                     {file.name}
                   </span>
                 )}
@@ -172,7 +179,7 @@ export function CreatePlanilhaDialog({
               />
             </div>
 
-            <DialogFooter className="flex-col sm:flex-row gap-2">
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
@@ -189,7 +196,7 @@ export function CreatePlanilhaDialog({
               >
                 {createMutation.isPending ? (
                   <>
-                    <Loader2 className="size-4 animate-spin mr-1" />
+                    <Loader2 className="mr-1 size-4 animate-spin" />
                     Criando...
                   </>
                 ) : (

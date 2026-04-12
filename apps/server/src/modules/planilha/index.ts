@@ -1,10 +1,17 @@
 import { Elysia, t } from "elysia";
-import { PlanilhaService } from "./service";
-import { planilhaInsertSchema, planilhaSelectSchema } from "./model";
 import ExcelJS from "exceljs";
+import { PlanilhaService } from "./service";
+import { planilhaSelectSchema } from "./model";
 import { ItensPlanilhaService } from "../itens_planilha/service";
 import { ItensPlanilhaInsert } from "../itens_planilha/model";
 import { authGuard } from "@/plugin/middleware";
+
+const normalizeHeader = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toUpperCase();
 
 export const planilhasController = new Elysia({
   prefix: "/planilhas",
@@ -27,8 +34,10 @@ export const planilhasController = new Elysia({
       await workbook.xlsx.load(buffer);
 
       const worksheet = workbook.worksheets[0];
-      const headers = worksheet.getRow(1).values as string[];
-      console.log(headers);
+      const headers = (worksheet.getRow(1).values as unknown[]).map(
+        normalizeHeader,
+      );
+
       const { planilha, ...rest } = body;
       const planilhaId = await PlanilhaService.create({
         ...rest,
@@ -39,9 +48,10 @@ export const planilhasController = new Elysia({
         "ITEM",
         "UNIDADE",
         "QUANTIDADE",
-        "DESCRIÇÃO",
+        "DESCRICAO",
         "VALOR",
         "FONTE",
+        "LINK",
       ] as const;
 
       const itens: ItensPlanilhaInsert[] = (
@@ -66,13 +76,14 @@ export const planilhasController = new Elysia({
           ),
         )
         .map((item) => ({
-          unidade: String(item["UNIDADE"] ?? ""),
-          quantidade: Number(item["QUANTIDADE"] ?? 0),
-          descricao: String(item["DESCRIÇÃO"] ?? ""),
+          unidade: String(item.UNIDADE ?? ""),
+          quantidade: Number(item.QUANTIDADE ?? 0),
+          descricao: String(item.DESCRICAO ?? ""),
           planilhaId: planilhaId[0].id,
-          numero: Number(item["ITEM"] ?? 0),
-          valor: Number(item["VALOR"] ?? 0),
-          fonte: String(item["FONTE"] ?? ""),
+          numero: Number(item.ITEM ?? 0),
+          valor: Number(item.VALOR ?? 0),
+          fonte: String(item.FONTE ?? ""),
+          link: String(item.LINK ?? ""),
         }));
 
       await ItensPlanilhaService.create(itens);
@@ -115,13 +126,14 @@ export const planilhasController = new Elysia({
       const worksheet = workbook.addWorksheet("Planilha");
 
       worksheet.columns = [
-        { header: "Item", key: "numero", width: 10 },
-        { header: "Descrição", key: "descricao", width: 100 },
-        { header: "Unidade", key: "unidade", width: 15 },
-        { header: "Quantidade", key: "quantidade", width: 15 },
-        { header: "Valor", key: "valor", width: 15 },
-        { header: "Total", key: "total", width: 15 },
-        { header: "Fonte", key: "fonte", width: 70 },
+        { header: "ITEM", key: "numero", width: 10 },
+        { header: "DESCRIÇÃO", key: "descricao", width: 100 },
+        { header: "UNIDADE", key: "unidade", width: 15 },
+        { header: "QUANTIDADE", key: "quantidade", width: 15 },
+        { header: "VALOR", key: "valor", width: 15 },
+        { header: "TOTAL", key: "total", width: 15 },
+        { header: "FONTE", key: "fonte", width: 70 },
+        { header: "LINK", key: "link", width: 70 },
       ];
 
       for (const item of items) {
@@ -133,14 +145,15 @@ export const planilhasController = new Elysia({
           valor: item.valor,
           total: item.quantidade * item.valor,
           fonte: item.fonte,
+          link: item.link,
         });
       }
 
       worksheet.getColumn("valor").numFmt = '"R$" #.##0,00';
       worksheet.getColumn("total").numFmt = '"R$" #.##0,00';
-      worksheet.getColumn("descricao").alignment = {
-        wrapText: true,
-      };
+      worksheet.getColumn("descricao").alignment = { wrapText: true };
+      worksheet.getColumn("fonte").alignment = { wrapText: true };
+      worksheet.getColumn("link").alignment = { wrapText: true };
 
       const buffer = await workbook.xlsx.writeBuffer();
 

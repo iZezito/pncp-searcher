@@ -4,7 +4,6 @@ import type {
   ApiResponse,
   DeepSearchJobData,
   FoundItem,
-  PageResult,
   CompraItem,
 } from "./lib/types";
 import { io } from "./lib/socket-io";
@@ -19,7 +18,7 @@ const api = axios.create({
 });
 
 function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function normalize(text: string): string {
@@ -36,13 +35,13 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     }, ms);
 
     promise
-      .then((res) => {
+      .then((result) => {
         clearTimeout(timer);
-        resolve(res);
+        resolve(result);
       })
-      .catch((err) => {
+      .catch((error) => {
         clearTimeout(timer);
-        reject(err);
+        reject(error);
       });
   });
 }
@@ -59,20 +58,18 @@ async function requestWithRetry<T>(
   const timeoutMs = options?.timeoutMs ?? 10000;
   const baseDelayMs = options?.baseDelayMs ?? 300;
 
-  let lastError: any;
+  let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await withTimeout(api.request<T>(config), timeoutMs);
-      return res.data;
-    } catch (err: any) {
-      lastError = err;
+      const response = await withTimeout(api.request<T>(config), timeoutMs);
+      return response.data;
+    } catch (error) {
+      lastError = error;
 
-      console.warn(
-        `[HTTP] ❌ Tentativa ${attempt + 1}/${retries + 1}: ${err.message}`,
-      );
-
-      if (attempt === retries) break;
+      if (attempt === retries) {
+        break;
+      }
 
       const delay = baseDelayMs * 2 ** attempt;
       await sleep(delay);
@@ -106,7 +103,9 @@ class RateLimiter {
       this.active--;
 
       const next = this.queue.shift();
-      if (next) next();
+      if (next) {
+        next();
+      }
     }
   }
 }
@@ -134,21 +133,18 @@ class CircuitBreaker {
 
     try {
       const result = await fn();
-
       this.failures = 0;
       this.state = "CLOSED";
-
       return result;
-    } catch (err) {
+    } catch (error) {
       this.failures++;
       this.lastFailureTime = Date.now();
 
       if (this.failures >= this.failureThreshold) {
         this.state = "OPEN";
-        console.warn("[CircuitBreaker] 🔴 OPEN");
       }
 
-      throw err;
+      throw error;
     }
   }
 }
@@ -165,12 +161,13 @@ async function runWithConcurrency<T>(
   async function worker() {
     while (true) {
       const current = index++;
-      if (current >= tasks.length) break;
+      if (current >= tasks.length) {
+        break;
+      }
 
       try {
         results[current] = await tasks[current]();
-      } catch (err) {
-        console.error(`[Worker] ❌ Erro na task ${current}`);
+      } catch {
         results[current] = null as T;
       }
     }
@@ -181,27 +178,24 @@ async function runWithConcurrency<T>(
 }
 
 function isJobCancelled(jobId: string | undefined): boolean {
-  if (!jobId) return false;
+  if (!jobId) {
+    return false;
+  }
+
   return cancelledJobs.has(jobId);
 }
 
-async function waitWhilePaused(
-  jobId: string | undefined,
-  room: string,
-): Promise<void> {
-  if (!jobId) return;
-  let notified = false;
-  while (pausedJobs.has(jobId)) {
-    if (!notified) {
-      console.log(`[Job] ⏸️ Job #${jobId} pausado`);
-      notified = true;
-    }
-    // Also check cancellation while paused
-    if (isJobCancelled(jobId)) return;
-    await sleep(500);
+async function waitWhilePaused(jobId: string | undefined): Promise<void> {
+  if (!jobId) {
+    return;
   }
-  if (notified) {
-    console.log(`[Job] ▶️ Job #${jobId} retomado`);
+
+  while (pausedJobs.has(jobId)) {
+    if (isJobCancelled(jobId)) {
+      return;
+    }
+
+    await sleep(500);
   }
 }
 
@@ -211,14 +205,6 @@ new Worker<DeepSearchJobData>(
     const { busca, planilhaId, palavrasChave } = job.data;
     const room = planilhaId || "global";
 
-    const jobStart = Date.now();
-
-    console.log(`\n${"=".repeat(60)}`);
-    console.log(`[Job] 🚀 Iniciando job #${job.id}`);
-    console.log(`[Job] busca: "${busca}" | planilha: "${planilhaId}"`);
-    console.log(`${"=".repeat(60)}\n`);
-
-    // Notify clients that the search has started
     io.to(room).emit("search-started", { jobId: job.id, planilhaId });
 
     const keywords = palavrasChave.map(normalize);
@@ -226,15 +212,12 @@ new Worker<DeepSearchJobData>(
 
     try {
       let pagina = 1;
-      const MAX_PAGINAS = 50;
+      const maxPaginas = 50;
 
-      while (pagina <= MAX_PAGINAS) {
-        // Wait while paused
-        await waitWhilePaused(job.id, room);
+      while (pagina <= maxPaginas) {
+        await waitWhilePaused(job.id);
 
-        // Check cancellation before each page
         if (isJobCancelled(job.id)) {
-          console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
           cancelledJobs.delete(job.id!);
           io.to(room).emit("search-stopped", {
             jobId: job.id,
@@ -243,8 +226,6 @@ new Worker<DeepSearchJobData>(
           });
           return { totalEncontrados, cancelled: true };
         }
-
-        console.log(`\n[Paginação] 📄 Página ${pagina}`);
 
         const response = await limiter.schedule(() =>
           breaker.execute(() =>
@@ -263,15 +244,14 @@ new Worker<DeepSearchJobData>(
           ),
         );
 
-        if (!response.items.length) break;
+        if (!response.items.length) {
+          break;
+        }
 
         for (const item of response.items) {
-          // Wait while paused
-          await waitWhilePaused(job.id, room);
+          await waitWhilePaused(job.id);
 
-          // Check cancellation before each edital
           if (isJobCancelled(job.id)) {
-            console.log(`[Job] 🛑 Job #${job.id} cancelado pelo usuário`);
             cancelledJobs.delete(job.id!);
             io.to(room).emit("search-stopped", {
               jobId: job.id,
@@ -280,10 +260,6 @@ new Worker<DeepSearchJobData>(
             });
             return { totalEncontrados, cancelled: true };
           }
-
-          const editalLabel = `${item.orgao_cnpj}/${item.ano}/${item.numero_sequencial}`;
-
-          console.log(`[Edital] 📋 ${editalLabel}`);
 
           let quantidadeItens = 0;
 
@@ -297,13 +273,12 @@ new Worker<DeepSearchJobData>(
               ),
             );
           } catch {
-            console.warn(`[Edital] ❌ Falha ao obter quantidade`);
             continue;
           }
 
           const paginasInternas = Math.ceil(quantidadeItens / 50) || 1;
 
-          const tasks = Array.from({ length: paginasInternas }, (_, i) => {
+          const tasks = Array.from({ length: paginasInternas }, (_, index) => {
             return async () => {
               try {
                 const data = await limiter.schedule(() =>
@@ -312,18 +287,15 @@ new Worker<DeepSearchJobData>(
                       url: `/pncp/v1/orgaos/${item.orgao_cnpj}/compras/${item.ano}/${item.numero_sequencial}/itens`,
                       method: "GET",
                       params: {
-                        pagina: i + 1,
+                        pagina: index + 1,
                         tamanhoPagina: 50,
                       },
                     }),
                   ),
                 );
 
-                return { page: i + 1, data };
-              } catch (err: any) {
-                console.warn(
-                  `[Itens] ❌ Página ${i + 1} falhou: ${err.message}`,
-                );
+                return { page: index + 1, data };
+              } catch {
                 return null;
               }
             };
@@ -332,37 +304,39 @@ new Worker<DeepSearchJobData>(
           const pages = await runWithConcurrency(tasks, 5);
 
           for (const pageResult of pages) {
-            if (!pageResult) continue;
+            if (!pageResult) {
+              continue;
+            }
 
             for (const itemDetail of pageResult.data) {
-              const desc = normalize(itemDetail.descricao);
+              const descricaoNormalizada = normalize(itemDetail.descricao);
+              const matched = keywords.find((keyword) =>
+                descricaoNormalizada.includes(keyword),
+              );
 
-              const matched = keywords.find((k) => desc.includes(k));
-
-              if (matched) {
-                totalEncontrados++;
-
-                const result: FoundItem = {
-                  link: `https://pncp.gov.br/app/editais/${item.orgao_cnpj}/${item.ano}/${item.numero_sequencial}`,
-                  valor: itemDetail.valorUnitarioEstimado,
-                  descricao: itemDetail.descricao,
-                  paginaExterna: pagina,
-                  paginaInterna: pageResult.page,
-                  unidadeMedida: itemDetail.unidadeMedida,
-                  fonte: `${item.title} - Local: ${item.municipio_nome}/${item.uf} - Órgão: ${item.orgao_nome}`,
-                };
-
-                io.to(room).emit("search-result", result);
+              if (!matched) {
+                continue;
               }
+
+              totalEncontrados++;
+
+              const result: FoundItem = {
+                link: `https://pncp.gov.br/app/editais/${item.orgao_cnpj}/${item.ano}/${item.numero_sequencial}`,
+                valor: itemDetail.valorUnitarioEstimado,
+                descricao: itemDetail.descricao,
+                paginaExterna: pagina,
+                paginaInterna: pageResult.page,
+                unidadeMedida: itemDetail.unidadeMedida,
+                fonte: `${item.title} - Local: ${item.municipio_nome}/${item.uf} - Orgao: ${item.orgao_nome}`,
+              };
+
+              io.to(room).emit("search-result", result);
             }
           }
         }
 
         pagina++;
       }
-
-      console.log(`\n[Job] ✅ Finalizado`);
-      console.log(`[Job] Total encontrados: ${totalEncontrados}`);
 
       io.to(room).emit("search-completed", {
         jobId: job.id,
@@ -371,14 +345,13 @@ new Worker<DeepSearchJobData>(
       });
 
       return { totalEncontrados };
-    } catch (err: any) {
-      console.error(`[Job] ❌ Erro: ${err.message}`);
+    } catch (error: any) {
       io.to(room).emit("search-stopped", {
         jobId: job.id,
         planilhaId,
-        error: err.message,
+        error: error.message,
       });
-      throw err;
+      throw error;
     }
   },
   {

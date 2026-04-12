@@ -195,7 +195,6 @@ export default function Planilhas() {
             </div>
           ) : (
             <>
-              {/* Desktop table */}
               <div className="hidden md:block">
                 <Table>
                   <TableHeader>
@@ -264,7 +263,6 @@ export default function Planilhas() {
                 </Table>
               </div>
 
-              {/* Mobile cards */}
               <div className="flex flex-col gap-3 md:hidden">
                 {planilhas.map((planilha) => (
                   <Card key={planilha.id}>
@@ -336,7 +334,6 @@ export default function Planilhas() {
         onSuccess={() => refetch()}
       />
 
-      {/* Delete confirmation dialog */}
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
@@ -372,7 +369,6 @@ export default function Planilhas() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Rename dialog */}
       <Dialog
         open={!!renameTarget}
         onOpenChange={(open) => !open && setRenameTarget(null)}

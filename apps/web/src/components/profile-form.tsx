@@ -1,12 +1,10 @@
-import { useService } from "@/hooks/use-service";
-import {
-  type UpdateUser,
-  type User,
-  userUpdateSchema,
-} from "@/types";
-import { useQueryClient } from "@tanstack/react-query";
 import { Fragment } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { useService } from "@/hooks/use-service";
+import { type UpdateUser, type User, userUpdateSchema } from "@/types";
 import {
   Form,
   FormControl,
@@ -17,9 +15,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Switch } from "@/components/ui/switch";
 
 type ProfileFormProps = {
@@ -37,7 +32,7 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
       name: user.name,
       email: user.email,
       twoFactorAuthenticationEnabled: user.twoFactorAuthenticationEnabled,
-    }
+    },
   });
 
   const onSubmit = async (data: UpdateUser): Promise<void> => {
@@ -51,8 +46,8 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
       });
       client.invalidateQueries({ queryKey: ["usuarioLogado"] });
       onSuccess?.();
-    } catch (err) {
-      console.error("Erro ao atualizar:", err);
+    } catch {
+      toast.error("Erro ao atualizar perfil.");
     }
   };
 
@@ -61,18 +56,16 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-8 max-w-4xl mx-auto"
+          className="mx-auto max-w-4xl space-y-8"
         >
-          <div className="space-y-2 mt-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              Meu Perfil
-            </h1>
+          <div className="mt-3 space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">Meu Perfil</h1>
             <p className="text-muted-foreground">
               Preencha os campos abaixo para atualizar seus dados.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <FormField
               control={form.control}
               name="name"
@@ -105,6 +98,7 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="twoFactorAuthenticationEnabled"
@@ -112,15 +106,16 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
                 <FormItem>
                   <FormLabel>Ativar 2FA</FormLabel>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
           </div>
-
 
           <div className="flex justify-end">
             <Button type="submit">
