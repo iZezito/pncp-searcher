@@ -129,3 +129,26 @@ export type FoundItem = {
   unidadeMedida: string;
   fonte: string;
 };
+
+export type ItemBusca = {
+  id: string;
+  descricao: string;
+  valor: number;
+  unidadeMedida: string;
+  link: string;
+  fonte: string;
+  paginaInterna: number;
+  paginaExterna: number;
+  itemId: string | null;
+  userId: string;
+  createdAt: string;
+};
+
+export type ItemBuscaPage = {
+  data: ItemBusca[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+

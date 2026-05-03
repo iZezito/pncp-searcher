@@ -11,6 +11,7 @@ import "./worker";
 import { itensController } from "./modules/itens_planilha";
 import { planilhasController } from "./modules/planilha";
 import { deepSearchController } from "./modules/deep_search";
+import { itensBuscaController } from "./modules/itens_busca";
 
 const app = new Elysia()
   .use(
@@ -48,7 +49,8 @@ const app = new Elysia()
   .use(authController)
   .use(planilhasController)
   .use(itensController)
-  .use(deepSearchController);
+  .use(deepSearchController)
+  .use(itensBuscaController);
 
 const { websocket } = engine.handler();
 

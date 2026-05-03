@@ -416,6 +416,7 @@ export default function DeepSearch() {
                       key={index}
                       result={result}
                       planilhaId={idPlanilha}
+                      pinnedItemId={pinnedItemId}
                     />
                   ))}
                 </div>
@@ -471,13 +472,7 @@ export default function DeepSearch() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2 pr-3">
-                  {[...planilhaItens]
-                    .sort((a, b) => {
-                      if (a.id === pinnedItemId) return -1;
-                      if (b.id === pinnedItemId) return 1;
-                      return 0;
-                    })
-                    .map((item) => (
+                  {planilhaItens.map((item) => (
                       <div
                         key={item.id}
                         className={`overflow-hidden rounded-md border p-3 text-sm ${

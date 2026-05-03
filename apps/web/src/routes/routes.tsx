@@ -13,6 +13,7 @@ import { Roles } from "@/types";
 import DeepSearch from "@/pages/deep-search";
 import Planilhas from "@/pages/planilhas";
 import EditarPlanilha from "@/pages/editar-planilha";
+import ResultadosSalvos from "@/pages/resultados-salvos";
 
 const allRoutes = () => {
   const publicRoutes = [
@@ -47,6 +48,7 @@ const allRoutes = () => {
         { path: "planilhas", element: <Planilhas /> },
         { path: "planilhas/:id/editar", element: <EditarPlanilha /> },
         { path: "deep-search/:idPlanilha", element: <DeepSearch /> },
+        { path: "resultados-salvos", element: <ResultadosSalvos /> },
       ],
     },
   ];

@@ -6,6 +6,7 @@ import {
   twoFactorAuthentication,
   itens,
   planilhas,
+  itensBusca,
 } from "./schema";
 
 export const emailVerificationsRelations = relations(
@@ -18,7 +19,7 @@ export const emailVerificationsRelations = relations(
   }),
 );
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   emailVerification: one(emailVerifications, {
     fields: [users.id],
     references: [emailVerifications.userId],
@@ -31,6 +32,7 @@ export const usersRelations = relations(users, ({ one }) => ({
     fields: [users.id],
     references: [twoFactorAuthentication.userId],
   }),
+  itensBusca: many(itensBusca),
 }));
 
 export const passwordResetTokensRelations = relations(
@@ -53,11 +55,12 @@ export const twoFactorAuthenticationRelations = relations(
   }),
 );
 
-export const itensRelations = relations(itens, ({ one }) => ({
+export const itensRelations = relations(itens, ({ one, many }) => ({
   planilha: one(planilhas, {
     fields: [itens.planilhaId],
     references: [planilhas.id],
   }),
+  itensBusca: many(itensBusca),
 }));
 
 export const planilhasRelations = relations(planilhas, ({ one, many }) => ({
@@ -67,4 +70,16 @@ export const planilhasRelations = relations(planilhas, ({ one, many }) => ({
   }),
   itens: many(itens),
 }));
+
+export const itensBuscaRelations = relations(itensBusca, ({ one }) => ({
+  item: one(itens, {
+    fields: [itensBusca.itemId],
+    references: [itens.id],
+  }),
+  user: one(users, {
+    fields: [itensBusca.userId],
+    references: [users.id],
+  }),
+}));
+
 

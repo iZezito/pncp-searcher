@@ -162,3 +162,42 @@ export const itens = pgTable(
       .onDelete("cascade"),
   ],
 );
+
+export const itensBusca = pgTable(
+  "itens_busca",
+  {
+    id: text()
+      .$defaultFn(() => createId())
+      .primaryKey()
+      .notNull(),
+    descricao: text().notNull(),
+    valor: doublePrecision().notNull(),
+    unidadeMedida: text().notNull(),
+    link: text().notNull(),
+    fonte: text().notNull(),
+    paginaInterna: integer().notNull(),
+    paginaExterna: integer().notNull(),
+    itemId: text(),
+    userId: text().notNull(),
+    createdAt: timestamp({ precision: 3, withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.itemId],
+      foreignColumns: [itens.id],
+      name: "itens_busca_itemId_fkey",
+    })
+      .onUpdate("cascade")
+      .onDelete("set null"),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [users.id],
+      name: "itens_busca_userId_fkey",
+    })
+      .onUpdate("cascade")
+      .onDelete("cascade"),
+  ],
+);
+

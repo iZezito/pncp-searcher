@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Home, FileSpreadsheet } from "lucide-react";
+import { Home, FileSpreadsheet, Bookmark } from "lucide-react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
 import {
@@ -28,6 +28,11 @@ const data = {
       title: "Planilhas",
       url: "/planilhas",
       icon: FileSpreadsheet,
+    },
+    {
+      title: "Resultados Salvos",
+      url: "/resultados-salvos",
+      icon: Bookmark,
     },
   ],
 };
