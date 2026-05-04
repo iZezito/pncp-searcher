@@ -40,10 +40,11 @@ export const itensBuscaController = new Elysia({
     async ({ query, user }) => {
       const page = query.page ?? 1;
       const pageSize = query.pageSize ?? 20;
+      const search = query.search ?? undefined;
 
       const [data, total] = await Promise.all([
-        ItensBuscaService.findByUserId(user.id, page, pageSize),
-        ItensBuscaService.countByUserId(user.id),
+        ItensBuscaService.findByUserId(user.id, page, pageSize, search),
+        ItensBuscaService.countByUserId(user.id, search),
       ]);
 
       return {
@@ -58,6 +59,7 @@ export const itensBuscaController = new Elysia({
       query: t.Object({
         page: t.Optional(t.Number({ minimum: 1 })),
         pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100 })),
+        search: t.Optional(t.String()),
       }),
     },
   )

@@ -1,14 +1,18 @@
-import { useQueryState, parseAsInteger } from "nuqs";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useQueryState, parseAsInteger, parseAsString } from "nuqs";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bookmark,
-  ExternalLink,
   FileText,
   Loader2,
   Ruler,
   Link2,
   ChevronLeft,
   ChevronRight,
+  Search,
+  X,
+  Sparkles,
+  Command,
 } from "lucide-react";
 import { PageLayout } from "@/components/page-layout";
 import {
@@ -40,13 +44,74 @@ export default function ResultadosSalvos() {
     "pageSize",
     parseAsInteger.withDefault(20),
   );
+  const [search, setSearch] = useQueryState(
+    "search",
+    parseAsString.withDefault(""),
+  );
+
+  const [inputValue, setInputValue] = useState(search);
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Sync input value when URL search param changes externally
+  useEffect(() => {
+    setInputValue(search);
+  }, [search]);
+
+  // Debounced search - updates URL after 400ms of inactivity
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setInputValue(value);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        setSearch(value || null);
+        setPage(1);
+      }, 400);
+    },
+    [setSearch, setPage],
+  );
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Ctrl+K / Cmd+K keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+      // Escape to blur and clear
+      if (e.key === "Escape" && document.activeElement === inputRef.current) {
+        inputRef.current?.blur();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleClear = () => {
+    setInputValue("");
+    setSearch(null);
+    setPage(1);
+    inputRef.current?.focus();
+  };
 
   const { data, isLoading } = useQuery<ItemBuscaPage>({
-    queryKey: ["itens-busca", page, pageSize],
+    queryKey: ["itens-busca", page, pageSize, search],
     queryFn: async () => {
-      const res = await api.get<ItemBuscaPage>("/itens-busca", {
-        params: { page, pageSize },
-      });
+      const params: Record<string, string | number> = { page, pageSize };
+      if (search) params.search = search;
+      const res = await api.get<ItemBuscaPage>("/itens-busca", { params });
       return res.data;
     },
   });
@@ -86,6 +151,8 @@ export default function ResultadosSalvos() {
     });
   };
 
+  const isSearching = isLoading && !!search;
+
   return (
     <PageLayout
       breadcrumbs={[{ label: "Resultados Salvos" }]}
@@ -103,6 +170,106 @@ export default function ResultadosSalvos() {
           <Badge variant="secondary" className="text-sm">
             {total} {total === 1 ? "resultado" : "resultados"}
           </Badge>
+        )}
+      </div>
+
+      {/* ─── Super Search Bar ─── */}
+      <div className="relative group" id="super-search-bar">
+        {/* Glow effect behind the bar */}
+        <div
+          className={`
+            absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/30 via-primary/20 to-primary/30 blur-xl
+            transition-all duration-500 ease-out
+            ${isFocused ? "opacity-100 scale-[1.02]" : "opacity-0 scale-100"}
+          `}
+        />
+
+        <div
+          className={`
+            relative flex items-center gap-3 rounded-xl border bg-card/80 backdrop-blur-md px-4 py-3
+            shadow-sm transition-all duration-300 ease-out
+            ${isFocused
+              ? "border-primary/50 shadow-lg shadow-primary/10 ring-2 ring-primary/20"
+              : "border-border hover:border-primary/30 hover:shadow-md"
+            }
+          `}
+        >
+          {/* Search icon with animation */}
+          <div className="relative flex items-center justify-center size-5 shrink-0">
+            {isSearching ? (
+              <Loader2 className="size-5 text-primary animate-spin" />
+            ) : (
+              <Search
+                className={`
+                  size-5 transition-all duration-300
+                  ${isFocused ? "text-primary scale-110" : "text-muted-foreground"}
+                `}
+              />
+            )}
+          </div>
+
+          {/* Input */}
+          <input
+            ref={inputRef}
+            id="search-input"
+            type="text"
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder="Buscar por descrição, fonte ou unidade..."
+            className={`
+              flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60
+              transition-colors duration-200 md:text-sm
+            `}
+            autoComplete="off"
+          />
+
+          {/* Right side: clear button or keyboard shortcut */}
+          <div className="flex items-center gap-2 shrink-0">
+            {inputValue ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                className={`
+                  flex items-center justify-center size-7 rounded-lg
+                  bg-muted/80 hover:bg-destructive/10 hover:text-destructive
+                  text-muted-foreground transition-all duration-200
+                  active:scale-90
+                `}
+                title="Limpar busca"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : (
+              <kbd
+                className={`
+                  hidden sm:inline-flex items-center gap-1 rounded-lg border
+                  bg-muted/60 px-2 py-1 text-xs font-medium text-muted-foreground
+                  transition-all duration-300 select-none
+                  ${isFocused ? "opacity-0 scale-90" : "opacity-100 scale-100"}
+                `}
+              >
+                <Command className="size-3" />
+                K
+              </kbd>
+            )}
+          </div>
+        </div>
+
+        {/* Active search indicator */}
+        {search && (
+          <div className="flex items-center gap-2 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
+            <Sparkles className="size-3 text-primary" />
+            <span className="text-xs text-muted-foreground">
+              Filtrando por: <strong className="text-foreground">&ldquo;{search}&rdquo;</strong>
+            </span>
+            {!isLoading && (
+              <span className="text-xs text-muted-foreground">
+                &mdash; {total} {total === 1 ? "resultado" : "resultados"}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -124,13 +291,33 @@ export default function ResultadosSalvos() {
             </div>
           ) : itens.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <Bookmark className="size-12 text-muted-foreground" />
-              <p className="text-muted-foreground text-center">
-                Nenhum resultado salvo ainda.
-              </p>
-              <p className="text-sm text-muted-foreground text-center">
-                Salve resultados durante a busca para vê-los aqui.
-              </p>
+              {search ? (
+                <>
+                  <Search className="size-12 text-muted-foreground" />
+                  <p className="text-muted-foreground text-center">
+                    Nenhum resultado encontrado para &ldquo;{search}&rdquo;.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClear}
+                    className="mt-1 gap-1.5"
+                  >
+                    <X className="size-3.5" />
+                    Limpar busca
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Bookmark className="size-12 text-muted-foreground" />
+                  <p className="text-muted-foreground text-center">
+                    Nenhum resultado salvo ainda.
+                  </p>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Salve resultados durante a busca para vê-los aqui.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <>
