@@ -144,11 +144,10 @@ export type ItemBusca = {
   createdAt: string;
 };
 
-export type ItemBuscaPage = {
+export type ItemBuscaCursorPage = {
   data: ItemBusca[];
+  nextCursor: string | null;
+  hasMore: boolean;
   total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 };
 

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { itensBusca } from "@/drizzle/migrations/schema";
-import { eq, desc, count, and, or, ilike, type SQL } from "drizzle-orm";
+import { eq, desc, count, and, or, ilike, lt, type SQL } from "drizzle-orm";
 import type { ItensBuscaInsert } from "./model";
 
 export abstract class ItensBuscaService {
@@ -25,15 +25,35 @@ export abstract class ItensBuscaService {
     return await db.insert(itensBusca).values(item).returning();
   }
 
-  static async findByUserId(userId: string, page: number, pageSize: number, search?: string) {
-    const offset = (page - 1) * pageSize;
-    return await db
+  static async findByUserIdCursor(
+    userId: string,
+    pageSize: number,
+    cursor?: string,
+    search?: string,
+  ) {
+    const baseCondition = this.buildSearchCondition(userId, search);
+
+    const conditions: SQL[] = [baseCondition];
+
+    if (cursor) {
+      const cursorItem = await this.findById(cursor);
+      if (cursorItem) {
+        conditions.push(lt(itensBusca.createdAt, cursorItem.createdAt));
+      }
+    }
+
+    const data = await db
       .select()
       .from(itensBusca)
-      .where(this.buildSearchCondition(userId, search))
+      .where(and(...conditions))
       .orderBy(desc(itensBusca.createdAt))
-      .limit(pageSize)
-      .offset(offset);
+      .limit(pageSize + 1);
+
+    const hasMore = data.length > pageSize;
+    const items = hasMore ? data.slice(0, pageSize) : data;
+    const nextCursor = hasMore ? items[items.length - 1]?.id ?? null : null;
+
+    return { data: items, nextCursor, hasMore };
   }
 
   static async countByUserId(userId: string, search?: string) {

@@ -1,7 +1,6 @@
 import { Elysia, t } from "elysia";
 import ExcelJS from "exceljs";
 import { PlanilhaService } from "./service";
-import { planilhaSelectSchema } from "./model";
 import { ItensPlanilhaService } from "../itens_planilha/service";
 import { ItensPlanilhaInsert } from "../itens_planilha/model";
 import { authGuard } from "@/plugin/middleware";
@@ -19,11 +18,29 @@ export const planilhasController = new Elysia({
   .use(authGuard)
   .get(
     "/",
-    async () => {
-      return await PlanilhaService.findAll();
+    async ({ query }) => {
+      const pageSize = query.pageSize ?? 20;
+      const cursor = query.cursor ?? undefined;
+      const search = query.search ?? undefined;
+
+      const [result, total] = await Promise.all([
+        PlanilhaService.findAllCursor(pageSize, cursor, search),
+        PlanilhaService.countAll(search),
+      ]);
+
+      return {
+        data: result.data,
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore,
+        total,
+      };
     },
     {
-      response: t.Array(planilhaSelectSchema),
+      query: t.Object({
+        cursor: t.Optional(t.String()),
+        pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100 })),
+        search: t.Optional(t.String()),
+      }),
     },
   )
   .post(

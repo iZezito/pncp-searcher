@@ -33,13 +33,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/services/api";
-import type { ItemBuscaPage } from "@/types/deep-search";
+import type { ItemBuscaCursorPage } from "@/types/deep-search";
 
 export default function ResultadosSalvos() {
-  const [page, setPage] = useQueryState(
-    "page",
-    parseAsInteger.withDefault(1),
-  );
   const [pageSize] = useQueryState(
     "pageSize",
     parseAsInteger.withDefault(20),
@@ -48,6 +44,13 @@ export default function ResultadosSalvos() {
     "search",
     parseAsString.withDefault(""),
   );
+  const [cursor, setCursor] = useQueryState(
+    "cursor",
+    parseAsString.withDefault(""),
+  );
+
+  // Cursor stack for back navigation
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
 
   const [inputValue, setInputValue] = useState(search);
   const [isFocused, setIsFocused] = useState(false);
@@ -68,10 +71,11 @@ export default function ResultadosSalvos() {
       }
       debounceTimerRef.current = setTimeout(() => {
         setSearch(value || null);
-        setPage(1);
+        setCursor(null);
+        setCursorStack([]);
       }, 400);
     },
-    [setSearch, setPage],
+    [setSearch, setCursor],
   );
 
   // Cleanup debounce timer
@@ -90,7 +94,6 @@ export default function ResultadosSalvos() {
         e.preventDefault();
         inputRef.current?.focus();
       }
-      // Escape to blur and clear
       if (e.key === "Escape" && document.activeElement === inputRef.current) {
         inputRef.current?.blur();
       }
@@ -102,43 +105,40 @@ export default function ResultadosSalvos() {
   const handleClear = () => {
     setInputValue("");
     setSearch(null);
-    setPage(1);
+    setCursor(null);
+    setCursorStack([]);
     inputRef.current?.focus();
   };
 
-  const { data, isLoading } = useQuery<ItemBuscaPage>({
-    queryKey: ["itens-busca", page, pageSize, search],
+  const { data, isLoading } = useQuery<ItemBuscaCursorPage>({
+    queryKey: ["itens-busca", cursor, pageSize, search],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page, pageSize };
+      const params: Record<string, string | number> = { pageSize };
       if (search) params.search = search;
-      const res = await api.get<ItemBuscaPage>("/itens-busca", { params });
+      if (cursor) params.cursor = cursor;
+      const res = await api.get<ItemBuscaCursorPage>("/itens-busca", { params });
       return res.data;
     },
   });
 
-  const totalPages = data?.totalPages ?? 1;
   const itens = data?.data ?? [];
   const total = data?.total ?? 0;
+  const hasMore = data?.hasMore ?? false;
+  const nextCursor = data?.nextCursor ?? null;
+  const isFirstPage = cursorStack.length === 0;
 
-  const getPageNumbers = () => {
-    const pages: (number | "ellipsis")[] = [];
-    const maxVisible = 5;
+  const handleNextPage = () => {
+    if (!nextCursor) return;
+    setCursorStack((prev) => [...prev, cursor || ""]);
+    setCursor(nextCursor);
+  };
 
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (page > 3) pages.push("ellipsis");
-
-      const start = Math.max(2, page - 1);
-      const end = Math.min(totalPages - 1, page + 1);
-      for (let i = start; i <= end; i++) pages.push(i);
-
-      if (page < totalPages - 2) pages.push("ellipsis");
-      pages.push(totalPages);
-    }
-
-    return pages;
+  const handlePrevPage = () => {
+    if (isFirstPage) return;
+    const newStack = [...cursorStack];
+    const prevCursor = newStack.pop()!;
+    setCursorStack(newStack);
+    setCursor(prevCursor || null);
   };
 
   const formatDate = (dateStr: string) => {
@@ -152,6 +152,7 @@ export default function ResultadosSalvos() {
   };
 
   const isSearching = isLoading && !!search;
+  const currentPage = cursorStack.length + 1;
 
   return (
     <PageLayout
@@ -428,47 +429,32 @@ export default function ResultadosSalvos() {
                 ))}
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-1 mt-6">
+              {/* Cursor Pagination */}
+              {(!isFirstPage || hasMore) && (
+                <div className="flex items-center justify-center gap-3 mt-6">
                   <Button
                     variant="outline"
-                    size="icon"
-                    className="size-8"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
+                    size="sm"
+                    disabled={isFirstPage}
+                    onClick={handlePrevPage}
+                    className="gap-1.5"
                   >
                     <ChevronLeft className="size-4" />
+                    Anterior
                   </Button>
 
-                  {getPageNumbers().map((p, i) =>
-                    p === "ellipsis" ? (
-                      <span
-                        key={`ellipsis-${i}`}
-                        className="flex size-8 items-center justify-center text-sm text-muted-foreground"
-                      >
-                        …
-                      </span>
-                    ) : (
-                      <Button
-                        key={p}
-                        variant={page === p ? "default" : "outline"}
-                        size="icon"
-                        className="size-8 text-sm"
-                        onClick={() => setPage(p)}
-                      >
-                        {p}
-                      </Button>
-                    ),
-                  )}
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    Página {currentPage}
+                  </span>
 
                   <Button
                     variant="outline"
-                    size="icon"
-                    className="size-8"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(page + 1)}
+                    size="sm"
+                    disabled={!hasMore}
+                    onClick={handleNextPage}
+                    className="gap-1.5"
                   >
+                    Próxima
                     <ChevronRight className="size-4" />
                   </Button>
                 </div>

@@ -16,3 +16,10 @@ export type ItemPlanilha = {
   link: string;
   createdAt: string;
 };
+
+export type PlanilhaCursorPage = {
+  data: Planilha[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  total: number;
+};
