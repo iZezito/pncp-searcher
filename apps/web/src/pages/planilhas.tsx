@@ -101,7 +101,7 @@ export default function Planilhas() {
   const [inputValue, setInputValue] = useState(search);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Sync input value when URL search param changes externally
   useEffect(() => {
