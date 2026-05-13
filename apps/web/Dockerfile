@@ -1,8 +1,8 @@
 # Stage 1: Build da aplicação
 FROM oven/bun AS build
 
-# ARG VITE_BASE_URL
-# ENV VITE_BASE_URL=$VITE_BASE_URL
+ARG VITE_BASE_URL
+ENV VITE_BASE_URL=$VITE_BASE_URL
 
 WORKDIR /app
 
