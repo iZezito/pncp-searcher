@@ -23,8 +23,8 @@ RUN bun build \
   --outfile server \
   src/index.ts
 
-# FROM gcr.io/distroless/base
-FROM debian:bullseye-slim
+FROM gcr.io/distroless/base
+# FROM debian:bullseye-slim
 
 WORKDIR /app
 
@@ -34,5 +34,4 @@ ENV NODE_ENV=production
 
 CMD ["./server"]
 
-# EXPOSE 3000
 EXPOSE $PORT
