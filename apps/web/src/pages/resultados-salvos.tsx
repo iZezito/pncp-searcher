@@ -49,7 +49,6 @@ export default function ResultadosSalvos() {
     parseAsString.withDefault(""),
   );
 
-  // Cursor stack for back navigation
   const [cursorStack, setCursorStack] = useState<string[]>([]);
 
   const [inputValue, setInputValue] = useState(search);
@@ -57,12 +56,10 @@ export default function ResultadosSalvos() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Sync input value when URL search param changes externally
   useEffect(() => {
     setInputValue(search);
   }, [search]);
 
-  // Debounced search - updates URL after 400ms of inactivity
   const handleInputChange = useCallback(
     (value: string) => {
       setInputValue(value);
@@ -78,7 +75,6 @@ export default function ResultadosSalvos() {
     [setSearch, setCursor],
   );
 
-  // Cleanup debounce timer
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -87,7 +83,6 @@ export default function ResultadosSalvos() {
     };
   }, []);
 
-  // Ctrl+K / Cmd+K keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -174,9 +169,7 @@ export default function ResultadosSalvos() {
         )}
       </div>
 
-      {/* ─── Super Search Bar ─── */}
       <div className="relative group" id="super-search-bar">
-        {/* Glow effect behind the bar */}
         <div
           className={`
             absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/30 via-primary/20 to-primary/30 blur-xl
@@ -195,7 +188,6 @@ export default function ResultadosSalvos() {
             }
           `}
         >
-          {/* Search icon with animation */}
           <div className="relative flex items-center justify-center size-5 shrink-0">
             {isSearching ? (
               <Loader2 className="size-5 text-primary animate-spin" />
@@ -209,7 +201,6 @@ export default function ResultadosSalvos() {
             )}
           </div>
 
-          {/* Input */}
           <input
             ref={inputRef}
             id="search-input"
@@ -226,7 +217,6 @@ export default function ResultadosSalvos() {
             autoComplete="off"
           />
 
-          {/* Right side: clear button or keyboard shortcut */}
           <div className="flex items-center gap-2 shrink-0">
             {inputValue ? (
               <button
@@ -258,7 +248,6 @@ export default function ResultadosSalvos() {
           </div>
         </div>
 
-        {/* Active search indicator */}
         {search && (
           <div className="flex items-center gap-2 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
             <Sparkles className="size-3 text-primary" />
@@ -322,7 +311,6 @@ export default function ResultadosSalvos() {
             </div>
           ) : (
             <>
-              {/* Desktop Table */}
               <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -378,7 +366,6 @@ export default function ResultadosSalvos() {
                 </Table>
               </div>
 
-              {/* Mobile Cards */}
               <div className="flex flex-col gap-3 md:hidden">
                 {itens.map((item) => (
                   <Card key={item.id}>
@@ -429,7 +416,6 @@ export default function ResultadosSalvos() {
                 ))}
               </div>
 
-              {/* Cursor Pagination */}
               {(!isFirstPage || hasMore) && (
                 <div className="flex items-center justify-center gap-3 mt-6">
                   <Button

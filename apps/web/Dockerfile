@@ -1,4 +1,3 @@
-# Stage 1: Build da aplicação
 FROM oven/bun AS build
 
 ARG VITE_BASE_URL
@@ -12,7 +11,6 @@ RUN bun install
 COPY . .
 RUN bun run build
 
-# Stage 2: Servir com Nginx
 FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html

@@ -1,159 +1,151 @@
-# Turborepo starter
+# Deep Search
 
-This Turborepo starter is maintained by the Turborepo core team.
+O Deep Search é uma plataforma para apoiar a Prefeitura Municipal de Ipanguaçu na estimativa de preços para processos licitatórios. A aplicação reduz o trabalho manual ao pesquisar itens no Portal Nacional de Contratações Públicas (PNCP), reunir referências de preços e organizar os resultados em planilhas reutilizáveis.
 
-## Using this example
+## Problema e objetivo
 
-Run the following command:
+A pesquisa de preços para licitações era feita manualmente e consumia muito tempo. O projeto foi criado para tornar esse processo mais rápido, rastreável e centralizado, permitindo que a equipe:
 
-```sh
-npx create-turbo@latest
+- crie planilhas com os itens da contratação;
+- pesquise um item no PNCP usando uma descrição e palavras-chave;
+- acompanhe os resultados da busca em tempo real;
+- pause, retome ou cancele uma busca em andamento;
+- salve resultados e fontes vinculados aos itens da planilha;
+- consulte, edite, pesquise e exporte planilhas e resultados salvos.
+
+O sistema é uma ferramenta de apoio à estimativa de preços. A análise e a validação dos valores continuam sendo responsabilidade da equipe responsável pela contratação.
+
+## Como funciona
+
+1. O usuário cria uma conta ou entra na plataforma.
+2. Uma planilha é criada para representar a pesquisa de um processo.
+3. Os itens são cadastrados com descrição, quantidade, unidade e, opcionalmente, valor.
+4. O usuário inicia uma busca informando o item e palavras-chave.
+5. O backend executa a busca de forma assíncrona, usando uma fila de jobs, e consulta dados públicos do PNCP.
+6. Os resultados são enviados ao frontend em tempo real por Socket.IO.
+7. O usuário pode salvar referências, links e valores para consultar posteriormente.
+
+## Funcionalidades
+
+- Autenticação por e-mail, confirmação de e-mail e recuperação de senha.
+- Login opcional com Google OAuth.
+- Gerenciamento de perfil e usuários.
+- Criação, edição, exclusão e pesquisa de planilhas.
+- Cadastro e edição de itens de uma planilha.
+- Busca profunda com execução em segundo plano.
+- Atualização de resultados em tempo real.
+- Controle de execução com pausar, retomar, parar e limpar resultados.
+- Histórico de resultados salvos com paginação e pesquisa.
+- Exportação de planilhas para Excel.
+- Interface responsiva com suporte a tema claro e escuro.
+
+## Arquitetura
+
+O repositório é um monorepo gerenciado pelo Turborepo e Bun:
+
+- `apps/web`: frontend em React, TypeScript, Vite, Tailwind CSS e React Router.
+- `apps/server`: API em Bun, Elysia e TypeScript, com módulos de autenticação, usuários, planilhas, itens e busca.
+- `apps/server/drizzle`: schema e migrations do PostgreSQL.
+- `packages`: configurações compartilhadas do TypeScript e ESLint.
+
+Serviços utilizados pela aplicação:
+
+- PostgreSQL para usuários, planilhas, itens e resultados.
+- Redis para filas, cache e controle dos jobs de busca.
+- Socket.IO para transmitir o progresso e os resultados ao navegador.
+- PNCP como fonte pública consultada pela busca.
+
+## Pré-requisitos
+
+- [Bun](https://bun.sh/) `1.3.7` ou compatível.
+- PostgreSQL `16`.
+- Redis `8`.
+- Credenciais de e-mail para confirmação de conta e recuperação de senha.
+- Credenciais do Google OAuth caso o login com Google seja utilizado.
+
+## Configuração local
+
+Instale as dependências na raiz do projeto:
+
+```bash
+bun install
 ```
 
-## What's inside?
+Crie `apps/server/.env` com as variáveis necessárias:
 
-This Turborepo includes the following packages/apps:
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pncp
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=uma-chave-secreta
+CLIENT_URL=http://localhost:5173
+PORT=3000
+NODE_ENV=development
 
-### Apps and Packages
+MAIL_HOST=smtp.example.com
+MAIL_USER=usuario
+MAIL_PASS=senha
+MAIL_FROM=no-reply@example.com
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+GOOGLE_CLIENT_ID=seu-client-id
+GOOGLE_CLIENT_SECRET=seu-client-secret
 ```
 
-Without global `turbo`, use your package manager:
+No frontend, defina `apps/web/.env`:
 
-```sh
-cd my-turborepo
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+```env
+VITE_BASE_URL=http://localhost:3000
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Aplique as migrations do banco e inicie os serviços:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```bash
+bun run --cwd apps/server db:migrate
+bun run dev
 ```
 
-Without global `turbo`:
+O frontend fica disponível em `http://localhost:5173`. A API usa `http://localhost:3000` por padrão.
 
-```sh
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+## Docker Compose
+
+O compose da raiz inicia o frontend, a API, o PostgreSQL e o Redis. Antes de iniciar, configure `apps/server/.env` e execute:
+
+```bash
+docker compose up --build
 ```
 
-### Develop
+Depois, acesse `http://localhost`. Os dados do PostgreSQL e do Redis ficam nos volumes `postgres_data` e `redis_data`.
 
-To develop all apps and packages, run the following command:
+## Comandos úteis
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+```bash
+bun run dev          # inicia frontend e backend
+bun run build        # gera os builds
+bun run lint         # executa o ESLint
+bun run check-types  # verifica os tipos TypeScript
+bun run format       # formata TypeScript e Markdown
 ```
 
-Without global `turbo`, use your package manager:
+Comandos específicos do backend:
 
-```sh
-cd my-turborepo
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+```bash
+bun run --cwd apps/server db:generate
+bun run --cwd apps/server db:migrate
+bun run --cwd apps/server db:studio
+bun run --cwd apps/server email
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Estrutura resumida
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
+```text
+apps/
+├── server/
+│   ├── src/modules/       # autenticação, usuários, planilhas e buscas
+│   ├── src/lib/            # banco, Redis, filas, e-mail e Socket.IO
+│   └── drizzle/migrations/ # migrations do PostgreSQL
+└── web/
+    └── src/
+        ├── components/    # componentes reutilizáveis
+        ├── pages/         # telas da aplicação
+        ├── services/      # comunicação com a API
+        └── types/         # tipos compartilhados do frontend
 ```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)

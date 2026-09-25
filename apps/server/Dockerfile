@@ -12,8 +12,6 @@ COPY ./drizzle ./drizzle
 
 COPY drizzle.config.ts tsconfig.json ./
 
-# RUN bun run db:generate
-
 ENV NODE_ENV=production
 
 RUN bun build \
@@ -24,7 +22,6 @@ RUN bun build \
   src/index.ts
 
 FROM gcr.io/distroless/base
-# FROM debian:bullseye-slim
 
 WORKDIR /app
 

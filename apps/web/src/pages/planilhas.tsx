@@ -83,7 +83,6 @@ export default function Planilhas() {
   const [deleteTarget, setDeleteTarget] = useState<Planilha | null>(null);
   const [renameTarget, setRenameTarget] = useState<Planilha | null>(null);
 
-  // ─── Search & Pagination State ───
   const [pageSize] = useQueryState(
     "pageSize",
     parseAsInteger.withDefault(20),
@@ -103,12 +102,10 @@ export default function Planilhas() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Sync input value when URL search param changes externally
   useEffect(() => {
     setInputValue(search);
   }, [search]);
 
-  // Debounced search
   const handleInputChange = useCallback(
     (value: string) => {
       setInputValue(value);
@@ -124,7 +121,6 @@ export default function Planilhas() {
     [setSearch, setCursor],
   );
 
-  // Cleanup debounce timer
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -133,7 +129,6 @@ export default function Planilhas() {
     };
   }, []);
 
-  // Ctrl+K / Cmd+K keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -156,7 +151,6 @@ export default function Planilhas() {
     inputRef.current?.focus();
   };
 
-  // ─── Data Fetching ───
   const {
     data: pageData,
     isLoading,
@@ -194,7 +188,6 @@ export default function Planilhas() {
     setCursor(prevCursor || null);
   };
 
-  // ─── Mutations ───
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return api.delete(`/planilhas/${id}`);
@@ -279,9 +272,7 @@ export default function Planilhas() {
         </div>
       </div>
 
-      {/* ─── Super Search Bar ─── */}
       <div className="relative group" id="super-search-bar-planilhas">
-        {/* Glow effect behind the bar */}
         <div
           className={`
             absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/30 via-primary/20 to-primary/30 blur-xl
@@ -300,7 +291,6 @@ export default function Planilhas() {
             }
           `}
         >
-          {/* Search icon with animation */}
           <div className="relative flex items-center justify-center size-5 shrink-0">
             {isSearching ? (
               <Loader2 className="size-5 text-primary animate-spin" />
@@ -314,7 +304,6 @@ export default function Planilhas() {
             )}
           </div>
 
-          {/* Input */}
           <input
             ref={inputRef}
             id="search-planilhas-input"
@@ -331,7 +320,6 @@ export default function Planilhas() {
             autoComplete="off"
           />
 
-          {/* Right side: clear button or keyboard shortcut */}
           <div className="flex items-center gap-2 shrink-0">
             {inputValue ? (
               <button
@@ -363,7 +351,6 @@ export default function Planilhas() {
           </div>
         </div>
 
-        {/* Active search indicator */}
         {search && (
           <div className="flex items-center gap-2 mt-2 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
             <Sparkles className="size-3 text-primary" />
@@ -558,7 +545,6 @@ export default function Planilhas() {
                 ))}
               </div>
 
-              {/* Cursor Pagination */}
               {(!isFirstPage || hasMore) && (
                 <div className="flex items-center justify-center gap-3 mt-6">
                   <Button
