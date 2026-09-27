@@ -1,4 +1,4 @@
-# Deep Search
+# PNCP Searcher
 
 O Deep Search é uma plataforma para apoiar a Prefeitura Municipal de Ipanguaçu na estimativa de preços para processos licitatórios. A aplicação reduz o trabalho manual ao pesquisar itens no Portal Nacional de Contratações Públicas (PNCP), reunir referências de preços e organizar os resultados em planilhas reutilizáveis.
 
