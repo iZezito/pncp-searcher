@@ -39,8 +39,8 @@ services:
   app:
     build:
       context: .
-      args:
-        DATABASE_URL: ${DATABASE_URL}
+      dockerfile: Dockerfile
+      target: runtime
     container_name: elysia_app
     restart: always
     ports:
@@ -48,12 +48,32 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     env_file:
-      - .env.local
+      - .env
     environment:
       NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres_db:5432/${POSTGRES_DB:-saas_starter}
+      REDIS_URL: redis://redis:6379
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres_db:5432/${POSTGRES_DB:-saas_starter}
+      SEED_USER_NAME: ${SEED_USER_NAME:-Administrador}
+      SEED_USER_EMAIL: ${SEED_USER_EMAIL:-admin@pncp.local}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-admin123}
+    depends_on:
+      postgres_db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

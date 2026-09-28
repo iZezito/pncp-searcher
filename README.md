@@ -57,7 +57,7 @@ Serviços utilizados pela aplicação:
 
 ## Pré-requisitos
 
-- [Bun](https://bun.sh/) `1.3.7` ou compatível.
+- [Bun](https://bun.sh/) `1.4.2` ou compatível.
 - PostgreSQL `16`.
 - Redis `8`.
 - Credenciais de e-mail para confirmação de conta e recuperação de senha.
@@ -88,6 +88,11 @@ MAIL_FROM=no-reply@example.com
 
 GOOGLE_CLIENT_ID=seu-client-id
 GOOGLE_CLIENT_SECRET=seu-client-secret
+
+# Usuário administrador criado pela seed (opcional)
+SEED_USER_NAME=Administrador
+SEED_USER_EMAIL=admin@pncp.local
+SEED_USER_PASSWORD=troque-esta-senha-segura
 ```
 
 No frontend, defina `apps/web/.env`:
@@ -130,9 +135,21 @@ Comandos específicos do backend:
 ```bash
 bun run --cwd apps/server db:generate
 bun run --cwd apps/server db:migrate
+bun run --cwd apps/server db:push
+bun run --cwd apps/server db:seed
 bun run --cwd apps/server db:studio
 bun run --cwd apps/server email
 ```
+
+No deploy via Docker Compose, o serviço one-shot `migrate` aguarda o PostgreSQL
+ficar saudável, executa `bunx --bun drizzle-kit push` e roda a seed. O backend
+só inicia depois que esse serviço termina com sucesso. A imagem final do backend
+continua usando distroless e recebe somente o binário compilado.
+
+A seed é idempotente: se já existir um usuário com o e-mail configurado, ela
+não cria uma duplicata nem altera sua senha. Se as variáveis `SEED_USER_*` não
+forem definidas, os valores padrão são `Administrador`, `admin@pncp.local` e
+`admin123`; defina uma senha segura no ambiente de produção.
 
 ## Estrutura resumida
 

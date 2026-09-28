@@ -8,6 +8,8 @@
     "db:generate": "drizzle-kit generate",
     "db:pull": "drizzle-kit pull",
     "db:migrate": "drizzle-kit migrate",
+    "db:push": "bunx --bun drizzle-kit push",
+    "db:seed": "bun run drizzle/seed.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
