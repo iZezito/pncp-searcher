@@ -44,7 +44,7 @@ services:
     container_name: elysia_app
     restart: always
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -55,6 +55,7 @@ services:
     env_file:
       - .env
     environment:
+      PORT: ${PORT:-3000}
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres_db:5432/${POSTGRES_DB:-saas_starter}
       REDIS_URL: redis://redis:6379
