@@ -89,7 +89,7 @@ MAIL_FROM=no-reply@example.com
 GOOGLE_CLIENT_ID=seu-client-id
 GOOGLE_CLIENT_SECRET=seu-client-secret
 
-# Usuário administrador criado pela seed (opcional)
+# Usuário base criado pela seed (opcional)
 SEED_USER_NAME=Administrador
 SEED_USER_EMAIL=admin@pncp.local
 SEED_USER_PASSWORD=troque-esta-senha-segura
@@ -146,10 +146,11 @@ ficar saudável, executa `bunx --bun drizzle-kit push` e roda a seed. O backend
 só inicia depois que esse serviço termina com sucesso. A imagem final do backend
 continua usando distroless e recebe somente o binário compilado.
 
-A seed é idempotente: se já existir um usuário com o e-mail configurado, ela
-não cria uma duplicata nem altera sua senha. Se as variáveis `SEED_USER_*` não
-forem definidas, os valores padrão são `Administrador`, `admin@pncp.local` e
-`admin123`; defina uma senha segura no ambiente de produção.
+A seed usa upsert pelo e-mail: cria o usuário quando ele não existe e, quando já
+existe, sincroniza nome, senha, role `DEFAULT` e verificação do e-mail. Se as
+variáveis `SEED_USER_*` não forem definidas, os valores padrão são
+`Administrador`, `admin@pncp.local` e `admin123`; defina uma senha segura no
+ambiente de produção.
 
 ## Estrutura resumida
 

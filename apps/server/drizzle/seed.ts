@@ -16,21 +16,25 @@ const passwordHash = await password.hash(plainTextPassword, {
   cost: 10,
 });
 
-const [createdUser] = await db
+const [upsertedUser] = await db
   .insert(users)
   .values({
     name,
     email,
     password: passwordHash,
-    role: "ADMIN",
+    role: "DEFAULT",
     emailVerified: true,
     twoFactorAuthenticationEnabled: false,
   })
-  .onConflictDoNothing({ target: users.email })
+  .onConflictDoUpdate({
+    target: users.email,
+    set: {
+      name,
+      password: passwordHash,
+      role: "DEFAULT",
+      emailVerified: true,
+    },
+  })
   .returning({ email: users.email });
 
-if (createdUser) {
-  console.log(`Usuário base criado: ${createdUser.email}`);
-} else {
-  console.log(`Usuário base já existe: ${email}`);
-}
+console.log(`Usuário base sincronizado: ${upsertedUser.email}`);
